@@ -34,7 +34,7 @@
 /***********************************************************
  * The tf_printf implementation for all BL stages
  ***********************************************************/
-static void unsigned_num_print(unsigned long int unum, unsigned int radix)
+static void unsigned_num_print(unsigned long int unum, unsigned int radix, int width, int padding)
 {
 	/* Just need enough space to store 64 bit decimal integer */
 	unsigned char num_buf[20];
@@ -48,8 +48,25 @@ static void unsigned_num_print(unsigned long int unum, unsigned int radix)
 			num_buf[i++] = 'a' + (rem - 0xa);
 	} while (unum /= radix);
 
+	while (width-- > i)
+		putchar(padding);
+
 	while (--i >= 0)
 		putchar(num_buf[i]);
+}
+
+static int get_width(const char **s)
+{
+	int width = 0;
+	int c;
+
+	while ((c = **s) != '\0') {
+		if (c < '0' || c > '9')
+			break;
+		width = width * 10 + (c - '0');
+		++(*s);
+	}
+	return width;
 }
 
 static void string_print(const char *str)
@@ -78,6 +95,8 @@ void tf_printf(const char *fmt, ...)
 	int64_t num;
 	uint64_t unum;
 	char *str;
+	int width = -1;
+	int padding = ' ';
 
 	va_start(args, fmt);
 	while (*fmt) {
@@ -101,7 +120,7 @@ loop:
 				} else
 					unum = (unsigned long int)num;
 
-				unsigned_num_print(unum, 10);
+				unsigned_num_print(unum, 10, width, padding);
 				break;
 			case 's':
 				str = va_arg(args, char *);
@@ -113,7 +132,7 @@ loop:
 				else
 					unum = va_arg(args, uint32_t);
 
-				unsigned_num_print(unum, 16);
+				unsigned_num_print(unum, 16, width, padding);
 				break;
 			case 'l':
 				bit64 = 1;
@@ -125,8 +144,21 @@ loop:
 				else
 					unum = va_arg(args, uint32_t);
 
-				unsigned_num_print(unum, 10);
+				unsigned_num_print(unum, 10, width, padding);
 				break;
+			case '0':
+				padding = '0';
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				width = get_width(&fmt);
+				goto loop;
 			default:
 				/* Exit on any other format specifier */
 				goto exit;
