@@ -34,11 +34,25 @@
 #include <mmio.h>
 #include <stdint.h>
 
+/* GICv3 distributor control register */
+#define CTRL_ARE_NS		(1UL << 5)
+#define CTRL_ARE_S		(1UL << 4)
+#define ENABLE_GRP1S		(1UL << 2)
+#define ENABLE_GRP1NS		(1UL << 1)
+#define ENABLE_GRP0S		(1UL << 0)
+
+#define GICD_IGROUPMODR		0xd00
 
 /* GICv3 Re-distributor interface registers & shifts */
 #define GICR_PCPUBASE_SHIFT	0x11
 #define GICR_TYPER		0x08
 #define GICR_WAKER		0x14
+
+#define GICR_IGROUPR		0x10080
+#define GICR_IGROUPMODR		0x10d00
+#define GICR_ISENABLER		0x10100
+#define GICR_ICFGR0		0x10c00
+#define GICR_ICFGR1		0x10c04
 
 /* GICR_WAKER bit definitions */
 #define WAKER_CA		(1UL << 2)
@@ -51,6 +65,8 @@
 
 /* GICv3 ICC_SRE register bit definitions*/
 #define ICC_SRE_EN		(1UL << 3)
+#define ICC_SRE_DIB		(1UL << 2)
+#define ICC_SRE_DFB		(1UL << 1)
 #define ICC_SRE_SRE		(1UL << 0)
 
 /*******************************************************************************
