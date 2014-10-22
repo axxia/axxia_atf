@@ -45,7 +45,7 @@ DEBUG			:= 0
 # Build architecture
 ARCH 			:= aarch64
 # Build platform
-DEFAULT_PLAT		:= fvp
+DEFAULT_PLAT		:= axxia
 PLAT			:= ${DEFAULT_PLAT}
 # SPD choice
 SPD			:= none
