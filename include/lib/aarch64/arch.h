@@ -74,6 +74,11 @@
 #define ICC_CTLR_EL1    S3_0_C12_C12_4
 #define ICC_CTLR_EL3    S3_6_C12_C12_4
 #define ICC_PMR_EL1     S3_0_C4_C6_0
+#define ICC_CTLR_EL1    S3_0_C12_C12_4
+#define ICC_CTLR_EL3    S3_6_C12_C12_4
+#define ICC_IGRPEN0_EL1 S3_0_C12_C12_6
+#define ICC_IGRPEN1_EL1 S3_0_C12_C12_7
+#define ICC_IGRPEN1_EL3 S3_6_C12_C12_7
 
 /*******************************************************************************
  * Generic timer memory mapped registers & offsets
