@@ -160,8 +160,9 @@ static int load_bl32(bl31_params_t *bl2_to_bl31_params)
  ******************************************************************************/
 static int load_bl33(bl31_params_t *bl2_to_bl31_params)
 {
+	int e = 0;
+#if 0
 	meminfo_t bl33_mem_info;
-	int e;
 
 	INFO("BL2: Loading BL3-3\n");
 	assert(bl2_to_bl31_params != NULL);
@@ -178,6 +179,8 @@ static int load_bl33(bl31_params_t *bl2_to_bl31_params)
 	if (e == 0)
 		bl2_plat_set_bl33_ep_info(bl2_to_bl31_params->bl33_image_info,
 					  bl2_to_bl31_params->bl33_ep_info);
+
+#endif
 
 	return e;
 }
