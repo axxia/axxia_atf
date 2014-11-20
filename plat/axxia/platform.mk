@@ -38,13 +38,14 @@ PLAT_BL_COMMON_SOURCES	:=	drivers/arm/pl011/pl011_console.S	\
 				lib/aarch64/xlat_tables.c		\
 				plat/common/aarch64/plat_common.c	\
 				plat/axxia/plat_io_storage.c
-
+ifdef FULL_ATF
 BL1_SOURCES		+=	lib/cpus/aarch64/cortex_a57.S		\
 				plat/common/aarch64/platform_up_stack.S	\
 				plat/axxia/bl1_plat_setup.c		\
 				plat/axxia/aarch64/bl1_plat_helpers.S	\
 				plat/axxia/aarch64/plat_helpers.S	\
 				plat/axxia/aarch64/axxia_common.c
+endif
 
 BL2_SOURCES		+=	lib/locks/bakery/bakery_lock.c		\
 				plat/common/aarch64/platform_up_stack.S	\
