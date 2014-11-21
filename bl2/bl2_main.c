@@ -245,5 +245,23 @@ void bl2_main(void)
 	 * the BL3-2 (if present) and BL3-3 software images will be passed to
 	 * BL3-1 as an argument.
 	 */
-	smc(RUN_IMAGE, (unsigned long)bl31_ep_info, 0, 0, 0, 0, 0, 0);
+	if (IS_IN_EL(1)) {
+		smc(RUN_IMAGE, (unsigned long)bl31_ep_info, 0, 0, 0, 0, 0, 0);
+	} else {
+		disable_mmu_el3();
+
+		bl31_ep_info->args.arg0 = (unsigned long)bl2_to_bl31_params;
+
+		write_spsr_el3(bl31_ep_info->spsr);
+		write_elr_el3(bl31_ep_info->pc);
+
+		eret(bl31_ep_info->args.arg0,
+		     bl31_ep_info->args.arg1,
+		     bl31_ep_info->args.arg2,
+		     bl31_ep_info->args.arg3,
+		     bl31_ep_info->args.arg4,
+		     bl31_ep_info->args.arg5,
+		     bl31_ep_info->args.arg6,
+		     bl31_ep_info->args.arg7);
+	}
 }
