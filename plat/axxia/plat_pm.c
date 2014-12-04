@@ -41,6 +41,9 @@
 #include "axxia_def.h"
 #include "axxia_private.h"
 
+#define SYSCON_RESET_KEY	(SYSCON_BASE + 0x2000)
+#define SYSCON_RESET_HOLD	(SYSCON_BASE + 0x2010)
+
 /*
  * Handler called when an affinity instance is about to be turned on. The level
  * and mpidr determine the affinity instance.
@@ -60,12 +63,12 @@ int32_t axxia_affinst_on(uint64_t mpidr,
 	case MPIDR_AFFLVL0:
 		id = platform_get_core_pos(mpidr);
 		mmio_write_64(SYSCON_BASE + 0x00e0, sec_entrypoint);
-		hold = mmio_read_32(SYSCON_BASE + 0x1010);
+		hold = mmio_read_32(SYSCON_RESET_HOLD);
 		hold &= ~(1 << id);
-		mmio_write_32(SYSCON_BASE + 0x1000, 0xab);
-		mmio_write_32(SYSCON_BASE + 0x1010, hold | (1 << id));
-		mmio_write_32(SYSCON_BASE + 0x1010, hold);
-		mmio_write_32(SYSCON_BASE + 0x1000, 0x00);
+		mmio_write_32(SYSCON_RESET_KEY, 0xab);
+		mmio_write_32(SYSCON_RESET_HOLD, hold | (1 << id));
+		mmio_write_32(SYSCON_RESET_HOLD, hold);
+		mmio_write_32(SYSCON_RESET_KEY, 0x00);
 		break;
 	default:
 		WARN("Unsupported affinity level");
