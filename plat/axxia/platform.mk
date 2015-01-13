@@ -40,6 +40,7 @@ PLAT_BL_COMMON_SOURCES	:=	drivers/arm/pl011/pl011_console.S	\
 				plat/axxia/plat_io_storage.c
 ifdef FULL_ATF
 BL1_SOURCES		+=	lib/cpus/aarch64/cortex_a57.S		\
+				lib/cpus/aarch64/cortex_a53.S		\
 				plat/common/aarch64/platform_up_stack.S	\
 				plat/axxia/bl1_plat_setup.c		\
 				plat/axxia/aarch64/bl1_plat_helpers.S	\
@@ -57,6 +58,7 @@ BL31_SOURCES		+=	drivers/arm/gic/gic_v2.c		\
 				drivers/arm/gic/gic_v3.c		\
 				plat/axxia/plat_gic.c			\
 				lib/cpus/aarch64/cortex_a57.S		\
+				lib/cpus/aarch64/cortex_a53.S		\
 				plat/common/aarch64/platform_mp_stack.S	\
 				plat/axxia/bl31_plat_setup.c		\
 				plat/axxia/aarch64/plat_helpers.S	\
