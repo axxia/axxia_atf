@@ -99,8 +99,8 @@
 /*******************************************************************************
  * BL3-1 specific defines.
  ******************************************************************************/
-#define BL31_BASE			(TZRAM_BASE + 0x10000)
-#define BL31_LIMIT			(TZRAM_BASE + TZRAM_SIZE)
+#define BL31_BASE			(TZRAM_BASE + 0x1000)
+#define BL31_LIMIT			(TZRAM_BASE + TZRAM_SIZE - 0x1000)
 
 /*******************************************************************************
  * Load address of BL3-3
