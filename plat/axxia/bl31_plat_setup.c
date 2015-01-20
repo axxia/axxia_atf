@@ -126,6 +126,7 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 	/*
 	 * Check params passed from BL2 should not be NULL,
 	 */
+#if 0
 	assert(from_bl2 != NULL);
 	assert(from_bl2->h.type == PARAM_BL31);
 	assert(from_bl2->h.version >= VERSION_1);
@@ -136,6 +137,7 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 	 */
 	bl32_ep_info = *from_bl2->bl32_ep_info;
 	bl33_ep_info = *from_bl2->bl33_ep_info;
+#endif
 }
 
 const unsigned int axxia_sec_irq[] = {
