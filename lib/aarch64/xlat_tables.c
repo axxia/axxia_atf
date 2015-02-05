@@ -54,7 +54,7 @@ CASSERT(ADDR_SPACE_SIZE > 0, assert_valid_addr_space_size);
 #define NUM_L1_ENTRIES 2 /*(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)*/
 
 static uint64_t l0_xlation_table[NUM_L1_ENTRIES]
-__aligned(NUM_L1_ENTRIES * sizeof(uint64_t));
+__aligned(0x1000);
 
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 __aligned(XLAT_TABLE_SIZE) __attribute__((section("xlat_table")));

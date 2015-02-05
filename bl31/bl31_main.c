@@ -88,7 +88,10 @@ void bl31_main(void)
 	runtime_svc_init();
 
 	/* Clean caches before re-entering normal world */
+	INFO("BL3-1: Cleaning caches\n");
+#if 0
 	dcsw_op_all(DCCSW);
+#endif
 
 	/*
 	 * All the cold boot actions on the primary cpu are done. We now need to
@@ -107,10 +110,12 @@ void bl31_main(void)
 		INFO("BL3-1: Initializing BL3-2\n");
 		(*bl32_init)();
 	}
+
 	/*
 	 * We are ready to enter the next EL. Prepare entry into the image
 	 * corresponding to the desired security state after the next ERET.
 	 */
+	INFO("BL3-1: Preparing next image entry\n");
 	bl31_prepare_next_image_entry();
 }
 

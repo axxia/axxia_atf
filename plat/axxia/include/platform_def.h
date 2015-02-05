@@ -77,7 +77,8 @@
 #define TZROM_BASE			0x80FFFF0000
 #define TZROM_SIZE			0x0000008000
 
-#define TZRAM_BASE			0x8031000000
+/*#define TZRAM_BASE			0x8031001000*/
+#define TZRAM_BASE			0x0040000000
 #define TZRAM_SIZE			0x0000040000
 
 /*******************************************************************************
@@ -99,8 +100,8 @@
 /*******************************************************************************
  * BL3-1 specific defines.
  ******************************************************************************/
-#define BL31_BASE			(TZRAM_BASE + 0x1000)
-#define BL31_LIMIT			(TZRAM_BASE + TZRAM_SIZE - 0x1000)
+#define BL31_BASE			TZRAM_BASE
+#define BL31_LIMIT			(TZRAM_BASE + TZRAM_SIZE)
 
 /*******************************************************************************
  * Load address of BL3-3
