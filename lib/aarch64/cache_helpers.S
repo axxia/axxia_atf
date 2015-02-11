@@ -138,6 +138,7 @@ loop3_\_op:
 	subs	x9, x9, x16		// decrement way number
 	b.ge	loop2_\_op
 
+	isb
 	b	level_done
 	.endm
 
