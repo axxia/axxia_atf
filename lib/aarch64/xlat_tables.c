@@ -334,10 +334,7 @@ void init_xlat_tables(void)
 		sctlr = read_sctlr_el##_el();				\
 		sctlr |= SCTLR_WXN_BIT | SCTLR_M_BIT;			\
 									\
-		if (flags & DISABLE_DCACHE)				\
-			sctlr &= ~SCTLR_C_BIT;				\
-		else							\
-			sctlr |= SCTLR_C_BIT;				\
+		sctlr &= ~SCTLR_C_BIT;					\
 									\
 		write_sctlr_el##_el(sctlr);				\
 									\
