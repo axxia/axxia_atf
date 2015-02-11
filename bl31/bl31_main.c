@@ -61,6 +61,113 @@ void bl31_lib_init(void)
 	cm_init();
 }
 
+static unsigned long
+get_cntr_frq(void)
+{
+	unsigned long cntfrq;
+
+	__asm__ __volatile__ ("mrs %0, cntfrq_el0" : "=r" (cntfrq));
+
+	return cntfrq;
+}
+
+static unsigned long
+get_cntr(void)
+{
+	unsigned long cntpct;
+
+	__asm__ __volatile__ ("isb ; mrs %0, cntpct_el0" : "=r" (cntpct));
+
+	return cntpct;
+}
+
+static void
+udelay(unsigned long us)
+{
+	unsigned long frequency;
+	unsigned long cycles;
+	unsigned long cycle;
+
+	frequency = get_cntr_frq();
+	cycles = (us * frequency) / 1000000;
+	cycle = get_cntr();
+	cycles += cycle;
+
+	do {
+		cycle = get_cntr();
+	} while (cycle < cycles);
+
+	return;
+}
+
+#define DICKENS 0x8000000000ULL
+
+static int
+set_l3_state(unsigned int state)
+{
+	int i;
+        unsigned int status;
+	int retries;
+	unsigned int hnf_offsets[] = {
+		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
+	};
+	volatile unsigned long *address;
+
+	if (0 != (state & ~0x3))
+		return -1;
+
+	for (i = 0; i < (sizeof(hnf_offsets) / sizeof(unsigned int)); ++i) {
+		address = (unsigned long *)
+			(DICKENS + (0x10000 * hnf_offsets[i]) + 0x10);
+		*address = state;
+		dsb();
+	}
+
+	for (i = 0; i < (sizeof(hnf_offsets) / sizeof(unsigned int)); ++i) {
+		retries = 10000;
+		address = (unsigned long *)
+			(DICKENS + (0x10000 * hnf_offsets[i]) + 0x18);
+
+		do {
+			udelay(1);
+			status = *address;
+		} while ((0 < --retries) && ((state << 2) != (status & 0xf)));
+
+		if (0 == retries)
+			return -1;
+	}
+
+	return 0;
+}
+
+static void
+flush_l3(void)
+{
+	int rc;
+
+	rc = set_l3_state(0x1);
+
+	if (0 != rc) {
+		printf("Error Setting L3 to SFONLY!\n");
+
+		return;
+	}
+
+	/*
+	  Leave L3 off for now while debuging cache problems in U-Boot.
+	*/
+
+#if 0
+	rc = set_l3_state(0x3);
+
+	if (0 != rc) {
+		printf("Error Setting L3 to FULL!\n");
+
+		return;
+	}
+#endif
+}
+
 /*******************************************************************************
  * BL31 is responsible for setting up the runtime services for the primary cpu
  * before passing control to the bootloader or an Operating System. This
@@ -89,9 +196,8 @@ void bl31_main(void)
 
 	/* Clean caches before re-entering normal world */
 	INFO("BL3-1: Cleaning caches\n");
-#if 0
 	dcsw_op_all(DCCSW);
-#endif
+	flush_l3();
 
 	/*
 	 * All the cold boot actions on the primary cpu are done. We now need to
