@@ -90,6 +90,6 @@ unsigned long plat_get_ns_image_entrypoint(void)
 
 uint64_t plat_get_syscnt_freq(void)
 {
-	uint64_t counter_base_frequency = 62500000;
+	uint64_t counter_base_frequency = 4000000;
 	return counter_base_frequency;
 }
