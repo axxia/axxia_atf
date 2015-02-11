@@ -36,9 +36,12 @@
 #include <string.h>
 #include <xlat_tables.h>
 
-
 #ifndef DEBUG_XLAT_TABLE
 #define DEBUG_XLAT_TABLE 0
+#endif
+
+#if DEBUG_XLAT_TABLE
+#include <stdio.h>
 #endif
 
 #if DEBUG_XLAT_TABLE
