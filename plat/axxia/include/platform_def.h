@@ -78,7 +78,7 @@
 #define TZROM_SIZE			0x0000008000
 
 /*#define TZRAM_BASE			0x8031001000*/
-#define TZRAM_BASE			0x0040000000
+#define TZRAM_BASE			0x007ffc1000
 #define TZRAM_SIZE			0x000003f000
 
 /*******************************************************************************
