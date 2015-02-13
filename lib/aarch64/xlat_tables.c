@@ -181,7 +181,7 @@ static int mmap_region_attr(mmap_region_t *mm, unsigned long base_va,
 		if ((mm->attr & attr) == attr)
 			continue; /* Region doesn't override attribs so skip */
 
-		attr &= mm->attr;
+		attr = mm->attr;
 
 		if (mm->base_va > base_va ||
 			mm->base_va + mm->size < base_va + size)
