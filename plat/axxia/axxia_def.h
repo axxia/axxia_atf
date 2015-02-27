@@ -48,8 +48,15 @@
 
 /* GIC-500 */
 #define GICC_BASE		0x8001000000
+#if 1
+/* NEW */
 #define GICD_BASE		0x8010000000
 #define GICR_BASE		0x8010200000
+#else
+/* OLD */
+#define GICD_BASE		0x8010010000
+#define GICR_BASE		0x8010100000
+#endif
 
 /* SYSCON */
 #define SYSCON_BASE		0x8002C00000

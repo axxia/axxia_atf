@@ -61,6 +61,10 @@ void bl31_lib_init(void)
 	cm_init();
 }
 
+#define FLUSH_L3
+
+#ifdef FLUSH_L3
+
 static unsigned long
 get_cntr_frq(void)
 {
@@ -168,6 +172,8 @@ flush_l3(void)
 #endif
 }
 
+#endif	/* FLUSH_L3 */
+
 /*******************************************************************************
  * BL31 is responsible for setting up the runtime services for the primary cpu
  * before passing control to the bootloader or an Operating System. This
@@ -197,7 +203,9 @@ void bl31_main(void)
 	/* Clean caches before re-entering normal world */
 	INFO("BL3-1: Cleaning caches\n");
 	dcsw_op_all(DCCSW);
+#ifdef FLUSH_L3
 	flush_l3();
+#endif
 
 	/*
 	 * All the cold boot actions on the primary cpu are done. We now need to
