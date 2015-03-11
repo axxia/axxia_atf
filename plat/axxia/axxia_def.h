@@ -48,18 +48,18 @@
 
 /* GIC-500 */
 #define GICC_BASE		0x8001000000
-#if 1
-/* NEW */
 #define GICD_BASE		0x8010000000
 #define GICR_BASE		0x8010200000
-#else
-/* OLD */
-#define GICD_BASE		0x8010010000
-#define GICR_BASE		0x8010100000
-#endif
 
 /* SYSCON */
 #define SYSCON_BASE		0x8002C00000
+
+/* DICKENS */
+#define DICKENS_BASE            0x8000000000
+
+/* NCA */
+#define NCA_X9_BASE             0x8031080000
+#define NCA_XLF_BASE            0x8020000000
 
 /* CCN-504 */
 #define CCN504_BASE		0x0000000000

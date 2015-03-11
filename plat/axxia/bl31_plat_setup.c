@@ -171,3 +171,217 @@ void bl31_plat_arch_setup()
 			  BL31_COHERENT_RAM_BASE,
 			  BL31_COHERENT_RAM_LIMIT);
 }
+
+#include <gic_v2.h>
+
+void
+display_gic(void)
+{
+	/* GICC */
+	tf_printf("*** BL31 GICC Registers ***\n");
+	tf_printf("      GICC_CTLR: 0x%x\n"
+		  "       GICC_PMR: 0x%x\n"
+		  "       GICC_BPR: 0x%x\n"
+		  "       GICC_IAR: 0x%x\n"
+		  "      GICC_EOIR: 0x%x\n"
+		  "       GICC_RPR: 0x%x\n"
+		  "     GICC_HPPIR: 0x%x\n"
+		  "    GICC_AHPPIR: 0x%x\n"
+		  "      GICC_IIDR: 0x%x\n"
+		  "       GICC_DIR: 0x%x\n",
+		  mmio_read_32(GICC_BASE + GICC_CTLR),
+		  mmio_read_32(GICC_BASE + GICC_PMR),
+		  mmio_read_32(GICC_BASE + GICC_BPR),
+		  mmio_read_32(GICC_BASE + GICC_IAR),
+		  mmio_read_32(GICC_BASE + GICC_EOIR),
+		  mmio_read_32(GICC_BASE + GICC_RPR),
+		  mmio_read_32(GICC_BASE + GICC_HPPIR),
+		  mmio_read_32(GICC_BASE + GICC_AHPPIR),
+		  mmio_read_32(GICC_BASE + GICC_IIDR),
+		  mmio_read_32(GICC_BASE + GICC_DIR));
+
+	/* GICD */
+	tf_printf("*** BL31 GICD Registers ***\n");
+	tf_printf("      GICD_CTLR: 0x%x\n"
+		  "     GICD_TYPER: 0x%x\n"
+		  "   GICD_IGROUPR: 0x%x\n"
+		  " GICD_ISENABLER: 0x%x\n"
+		  " GICD_ICENABLER: 0x%x\n"
+		  "   GICD_ISPENDR: 0x%x\n"
+		  "   GICD_ICPENDR: 0x%x\n"
+		  " GICD_ISACTIVER: 0x%x\n"
+		  " GICD_ICACTIVER: 0x%x\n"
+		  "GICD_IPRIORITYR: 0x%x\n"
+		  " GICD_ITARGETSR: 0x%x\n"
+		  "     GICD_ICFGR: 0x%x\n"
+		  "      GICD_SGIR: 0x%x\n"
+		  " GICD_CPENDSGIR: 0x%x\n"
+		  " GICD_SPENDSGIR: 0x%x\n",
+		  mmio_read_32(GICD_BASE + GICD_CTLR),
+		  mmio_read_32(GICD_BASE + GICD_TYPER),
+		  mmio_read_32(GICD_BASE + GICD_IGROUPR),
+		  mmio_read_32(GICD_BASE + GICD_ISENABLER),
+		  mmio_read_32(GICD_BASE + GICD_ICENABLER),
+		  mmio_read_32(GICD_BASE + GICD_ISPENDR),
+		  mmio_read_32(GICD_BASE + GICD_ICPENDR),
+		  mmio_read_32(GICD_BASE + GICD_ISACTIVER),
+		  mmio_read_32(GICD_BASE + GICD_ICACTIVER),
+		  mmio_read_32(GICD_BASE + GICD_IPRIORITYR),
+		  mmio_read_32(GICD_BASE + GICD_ITARGETSR),
+		  mmio_read_32(GICD_BASE + GICD_ICFGR),
+		  mmio_read_32(GICD_BASE + GICD_SGIR),
+		  mmio_read_32(GICD_BASE + GICD_CPENDSGIR),
+		  mmio_read_32(GICD_BASE + GICD_SPENDSGIR));
+
+	/* GICR */
+	tf_printf("*** BL31 GICR Registers ***\n");
+	tf_printf("      GICR_CTLR: 0x%x\n"
+		  "     GICD_TYPER: 0x%x\n"
+		  "   GICD_IGROUPR: 0x%x\n"
+		  " GICD_ISENABLER: 0x%x\n"
+		  " GICD_ICENABLER: 0x%x\n"
+		  "   GICD_ISPENDR: 0x%x\n"
+		  "   GICD_ICPENDR: 0x%x\n"
+		  " GICD_ISACTIVER: 0x%x\n"
+		  " GICD_ICACTIVER: 0x%x\n"
+		  "GICD_IPRIORITYR: 0x%x\n"
+		  " GICD_ITARGETSR: 0x%x\n"
+		  "     GICD_ICFGR: 0x%x\n"
+		  "      GICD_SGIR: 0x%x\n"
+		  " GICD_CPENDSGIR: 0x%x\n"
+		  " GICD_SPENDSGIR: 0x%x\n",
+		  mmio_read_32(GICR_BASE + GICD_CTLR),
+		  mmio_read_32(GICR_BASE + GICD_TYPER),
+		  mmio_read_32(GICR_BASE + GICD_IGROUPR),
+		  mmio_read_32(GICR_BASE + GICD_ISENABLER),
+		  mmio_read_32(GICR_BASE + GICD_ICENABLER),
+		  mmio_read_32(GICR_BASE + GICD_ISPENDR),
+		  mmio_read_32(GICR_BASE + GICD_ICPENDR),
+		  mmio_read_32(GICR_BASE + GICD_ISACTIVER),
+		  mmio_read_32(GICR_BASE + GICD_ICACTIVER),
+		  mmio_read_32(GICR_BASE + GICD_IPRIORITYR),
+		  mmio_read_32(GICR_BASE + GICD_ITARGETSR),
+		  mmio_read_32(GICR_BASE + GICD_ICFGR),
+		  mmio_read_32(GICR_BASE + GICD_SGIR),
+		  mmio_read_32(GICR_BASE + GICD_CPENDSGIR),
+		  mmio_read_32(GICR_BASE + GICD_SPENDSGIR));
+
+	return;
+}
+
+#include <mmio.h>
+
+int
+is_simulation(void)
+{
+	unsigned long pfuse;
+	unsigned long *nca_e0;
+
+	pfuse = mmio_read_32(SYSCON_BASE + 0x34);
+
+	if (0xb == (pfuse & 0x1f))
+		nca_e0 = (unsigned long *)(NCA_X9_BASE + 0xe0);
+	else
+		nca_e0 = (unsigned long *)(NCA_XLF_BASE + 0xe0);
+
+	return (0 == *nca_e0);
+}
+
+static unsigned long
+get_cntr_frq(void)
+{
+	unsigned long cntfrq;
+
+	__asm__ __volatile__ ("mrs %0, cntfrq_el0" : "=r" (cntfrq));
+
+	return cntfrq;
+}
+
+static unsigned long
+get_cntr(void)
+{
+	unsigned long cntpct;
+
+	__asm__ __volatile__ ("isb ; mrs %0, cntpct_el0" : "=r" (cntpct));
+
+	return cntpct;
+}
+
+static void
+udelay(unsigned long us)
+{
+	unsigned long frequency;
+	unsigned long cycles;
+	unsigned long cycle;
+
+	frequency = get_cntr_frq();
+	cycles = (us * frequency) / 1000000;
+	cycle = get_cntr();
+	cycles += cycle;
+
+	do {
+		cycle = get_cntr();
+	} while (cycle < cycles);
+
+	return;
+}
+
+static int
+set_l3_state(unsigned int state)
+{
+	int i;
+        unsigned int status;
+	int retries;
+	unsigned int hnf_offsets[] = {
+		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
+	};
+	volatile unsigned long *address;
+
+	if (0 != (state & ~0x3))
+		return -1;
+
+	for (i = 0; i < (sizeof(hnf_offsets) / sizeof(unsigned int)); ++i) {
+		address = (unsigned long *)
+			(DICKENS_BASE + (0x10000 * hnf_offsets[i]) + 0x10);
+		*address = state;
+		dsb();
+	}
+
+	for (i = 0; i < (sizeof(hnf_offsets) / sizeof(unsigned int)); ++i) {
+		retries = 10000;
+		address = (unsigned long *)
+			(DICKENS_BASE + (0x10000 * hnf_offsets[i]) + 0x18);
+
+		do {
+			udelay(1);
+			status = *address;
+		} while ((0 < --retries) && ((state << 2) != (status & 0xf)));
+
+		if (0 == retries)
+			return -1;
+	}
+
+	return 0;
+}
+
+void
+flush_l3(void)
+{
+	int rc;
+
+	rc = set_l3_state(0x1);
+
+	if (0 != rc) {
+		printf("Error Setting L3 to SFONLY!\n");
+
+		return;
+	}
+
+	rc = set_l3_state(0x3);
+
+	if (0 != rc) {
+		printf("Error Setting L3 to FULL!\n");
+
+		return;
+	}
+}
