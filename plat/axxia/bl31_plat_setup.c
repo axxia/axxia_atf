@@ -177,6 +177,7 @@ void bl31_plat_arch_setup()
 void
 display_gic(void)
 {
+#if 0
 	/* GICC */
 	tf_printf("*** BL31 GICC Registers ***\n");
 	tf_printf("      GICC_CTLR: 0x%x\n"
@@ -265,6 +266,7 @@ display_gic(void)
 		  mmio_read_32(GICR_BASE + GICD_SGIR),
 		  mmio_read_32(GICR_BASE + GICD_CPENDSGIR),
 		  mmio_read_32(GICR_BASE + GICD_SPENDSGIR));
+#endif
 
 	return;
 }
@@ -274,7 +276,7 @@ display_gic(void)
 int
 is_simulation(void)
 {
-	unsigned long pfuse;
+	unsigned int pfuse;
 	unsigned long *nca_e0;
 
 	pfuse = mmio_read_32(SYSCON_BASE + 0x34);
@@ -377,6 +379,7 @@ flush_l3(void)
 		return;
 	}
 
+#if 0
 	rc = set_l3_state(0x3);
 
 	if (0 != rc) {
@@ -384,4 +387,88 @@ flush_l3(void)
 
 		return;
 	}
+#endif
+}
+
+/*
+  ==============================================================================
+  Clusters and Coherency
+*/
+
+static int number_of_clusters;
+static int bit_by_cluster[4];
+
+static int
+initialize_cluster_info(void)
+{
+	number_of_clusters = 1;
+	bit_by_cluster[0] = 19;
+	bit_by_cluster[1] = 9;
+	bit_by_cluster[2] = -1;
+	bit_by_cluster[3] = -1;
+
+	return 0;
+}
+
+static unsigned long
+get_bit_by_cluster(unsigned long cluster)
+{
+	return bit_by_cluster[cluster];
+}
+
+int
+set_cluster_coherency(unsigned cluster, unsigned state)
+{
+	unsigned int sdcr_offsets[] = {
+		0x00,		/* This is the DVM */
+		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
+	};
+	int i;
+	int retries;
+	unsigned int mask;
+	unsigned int value;
+
+	initialize_cluster_info();
+
+	if (1 < cluster)
+		return -1;
+
+	printf("%s cluster %d %s the coherency domain.\n",
+	       state ? "Adding" : "Removing",
+	       cluster,
+	       state ? "to" : "from");
+	mask = (1 << get_bit_by_cluster(cluster));
+
+	for (i = 0; i < (sizeof(sdcr_offsets) / sizeof(unsigned int)); ++i) {
+		unsigned long offset;
+
+		offset = (DICKENS_BASE | (sdcr_offsets[i] << 16));
+
+		if (0 == state)
+			mmio_write_32((uintptr_t)(offset + 0x220),
+				      (unsigned int)mask);
+		else
+			mmio_write_32((uintptr_t)(offset + 0x210),
+				      (unsigned int)mask);
+
+		retries = 1000;
+
+		do {
+			--retries;
+			value = mmio_read_32(offset + 0x200);
+
+			if (0 == state) {
+				if (0 == (mask & value))
+					break;
+			} else {
+				if (mask == (mask & value))
+					break;
+			}
+		} while (0 < retries);
+
+		if (0 == retries)
+			return -1;
+	}
+
+	return 0;
 }
