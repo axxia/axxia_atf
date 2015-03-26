@@ -62,7 +62,9 @@ int32_t axxia_affinst_on(uint64_t mpidr,
 		break;
 	case MPIDR_AFFLVL0:
 		id = platform_get_core_pos(mpidr);
-		mmio_write_64(SYSCON_BASE + 0x00e0, sec_entrypoint);
+		mmio_write_32(0x8031000000,
+			      (0x14000000 |
+			       (sec_entrypoint - 0x8031000000) / 4));
 		hold = mmio_read_32(SYSCON_RESET_HOLD);
 		hold &= ~(1 << id);
 		mmio_write_32(SYSCON_RESET_KEY, 0xab);
@@ -91,8 +93,8 @@ int32_t axxia_affinst_on_finish(uint64_t mpidr, uint32_t afflvl, uint32_t state)
 		ccn_enable_cluster_coherency(mpidr);
 		break;
 	case MPIDR_AFFLVL0:
-		/* Clear entrypoint (scratch) register */
-		mmio_write_64(SYSCON_BASE + 0x00e0, 0);
+		/* Clear entrypoint branch */
+		mmio_write_32(0x8031000000, 0);
 		/* Enable the gic cpu interface */
 		gic_cpuif_setup(GICC_BASE);
 
