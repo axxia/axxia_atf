@@ -150,4 +150,7 @@ void bl2_plat_get_bl32_meminfo(struct meminfo *mem_info);
 /* Gets the memory layout for BL3-3 */
 void bl2_plat_get_bl33_meminfo(struct meminfo *mem_info);
 
+int is_x9(void);
+int is_simulation(void);
+
 #endif /* __AXXIA_PRIVATE_H__ */

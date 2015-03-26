@@ -280,14 +280,21 @@ display_gic(void)
 #include <mmio.h>
 
 int
-is_simulation(void)
+is_x9(void)
 {
 	unsigned int pfuse;
-	unsigned long *nca_e0;
 
 	pfuse = mmio_read_32(SYSCON_BASE + 0x34);
 
-	if (0xb == (pfuse & 0x1f))
+	return (0xb == (pfuse & 0x1f));
+}
+
+int
+is_simulation(void)
+{
+	unsigned long *nca_e0;
+
+	if (is_x9())
 		nca_e0 = (unsigned long *)(NCA_X9_BASE + 0xe0);
 	else
 		nca_e0 = (unsigned long *)(NCA_XLF_BASE + 0xe0);
@@ -344,13 +351,19 @@ set_l3_state(unsigned int state)
 		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27
 	};
 	volatile unsigned long *address;
+	unsigned long dickens_base;
+
+	if (is_x9())
+		dickens_base = DICKENS_BASE_X9;
+	else
+		dickens_base = DICKENS_BASE_XLF;
 
 	if (0 != (state & ~0x3))
 		return -1;
 
 	for (i = 0; i < (sizeof(hnf_offsets) / sizeof(unsigned int)); ++i) {
 		address = (unsigned long *)
-			(DICKENS_BASE + (0x10000 * hnf_offsets[i]) + 0x10);
+			(dickens_base + (0x10000 * hnf_offsets[i]) + 0x10);
 		*address = state;
 		dsb();
 	}
@@ -358,7 +371,7 @@ set_l3_state(unsigned int state)
 	for (i = 0; i < (sizeof(hnf_offsets) / sizeof(unsigned int)); ++i) {
 		retries = 10000;
 		address = (unsigned long *)
-			(DICKENS_BASE + (0x10000 * hnf_offsets[i]) + 0x18);
+			(dickens_base + (0x10000 * hnf_offsets[i]) + 0x18);
 
 		do {
 			udelay(1);
@@ -433,6 +446,12 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	int retries;
 	unsigned int mask;
 	unsigned int value;
+	unsigned long dickens_base;
+
+	if (is_x9())
+		dickens_base = DICKENS_BASE_X9;
+	else
+		dickens_base = DICKENS_BASE_XLF;
 
 	initialize_cluster_info();
 
@@ -448,7 +467,7 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	for (i = 0; i < (sizeof(sdcr_offsets) / sizeof(unsigned int)); ++i) {
 		unsigned long offset;
 
-		offset = (DICKENS_BASE | (sdcr_offsets[i] << 16));
+		offset = (dickens_base | (sdcr_offsets[i] << 16));
 
 		if (0 == state)
 			mmio_write_32((uintptr_t)(offset + 0x220),

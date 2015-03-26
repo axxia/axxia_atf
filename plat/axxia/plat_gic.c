@@ -55,8 +55,15 @@
 void gic_cpuif_setup(uintptr_t gicr_base)
 {
 	unsigned int val, scr_val;
+	uintptr_t gicr_base_;
 
-	gicr_base = gicv3_get_rdist(GICR_BASE, read_mpidr());
+	if (is_simulation())
+		gicr_base_ = GICR_BASE_SIM;
+	else
+		gicr_base_ = GICR_BASE_HW;
+
+	gicr_base = gicv3_get_rdist(gicr_base_, read_mpidr());
+
 	if (gicr_base == (uintptr_t)NULL)
 		panic();
 
@@ -160,7 +167,14 @@ static void gic_distif_setup(uintptr_t gicd_base)
 
 void axxia_gic_setup(void)
 {
-	gic_distif_setup(GICD_BASE);
+	uintptr_t gicd_base;
+
+	if (is_simulation())
+		gicd_base = GICD_BASE_SIM;
+	else
+		gicd_base = GICD_BASE_HW;
+
+	gic_distif_setup(gicd_base);
 	gic_cpuif_setup(0);
 }
 
@@ -262,8 +276,14 @@ void plat_ic_end_of_interrupt(uint32_t id)
 uint32_t plat_ic_get_interrupt_type(uint32_t id)
 {
 	uint32_t group;
+	uintptr_t gicd_base;
 
-	group = gicd_get_igroupr(GICD_BASE, id);
+	if (is_simulation())
+		gicd_base = GICD_BASE_SIM;
+	else
+		gicd_base = GICD_BASE_HW;
+
+	group = gicd_get_igroupr(gicd_base, id);
 
 	/* Assume that all secure interrupts are S-EL1 interrupts */
 	if (group == GRP0)
