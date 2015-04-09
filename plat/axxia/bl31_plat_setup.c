@@ -398,7 +398,6 @@ flush_l3(void)
 		return;
 	}
 
-#if 0
 	rc = set_l3_state(0x3);
 
 	if (0 != rc) {
@@ -406,7 +405,6 @@ flush_l3(void)
 
 		return;
 	}
-#endif
 }
 
 /*
