@@ -91,16 +91,13 @@ void bl31_main(void)
 	INFO("BL3-1: Cleaning caches\n");
 	dcsw_op_all(DCCSW);
 
-	extern int is_simulation(void);
 	extern void flush_l3(void);
 	extern int set_cluster_coherency(unsigned, unsigned);
 
-	if (!is_simulation()) {
-		flush_l3();
+	flush_l3();
 
-		if (0 != set_cluster_coherency(0, 1))
-			tf_printf("Adding cluster 0 to the coherency domain failed!\n");
-	}
+	if (0 != set_cluster_coherency(0, 1))
+		tf_printf("Adding cluster 0 to the coherency domain failed!\n");
 
 	/*
 	 * All the cold boot actions on the primary cpu are done. We now need to
