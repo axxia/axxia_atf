@@ -418,10 +418,10 @@ static int bit_by_cluster[4];
 static int
 initialize_cluster_info(void)
 {
-	number_of_clusters = 1;
+	number_of_clusters = 3;
 	bit_by_cluster[0] = 19;
 	bit_by_cluster[1] = 9;
-	bit_by_cluster[2] = -1;
+	bit_by_cluster[2] = 1;
 	bit_by_cluster[3] = -1;
 
 	return 0;
