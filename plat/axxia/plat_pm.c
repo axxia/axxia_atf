@@ -93,7 +93,9 @@ int32_t axxia_affinst_on_finish(uint64_t mpidr, uint32_t afflvl, uint32_t state)
 {
 	switch (afflvl) {
 	case MPIDR_AFFLVL1:
-		ccn_enable_cluster_coherency(mpidr);
+		if (0 != set_cluster_coherency((mpidr >> MPIDR_AFF1_SHIFT) &
+					       MPIDR_AFFLVL_MASK, 1))
+			return PSCI_E_INTERN_FAIL;
 		break;
 	case MPIDR_AFFLVL0:
 		/* Clear entrypoint branch */
@@ -128,7 +130,9 @@ static int32_t axxia_affinst_off(uint64_t mpidr, uint32_t afflvl, uint32_t state
 	/* Cluster is to be turned off, so disable coherency */
 	switch (afflvl) {
 	case MPIDR_AFFLVL1:
-		ccn_disable_cluster_coherency(mpidr);
+		if (0 != set_cluster_coherency((mpidr >> MPIDR_AFF1_SHIFT) &
+					       MPIDR_AFFLVL_MASK, 0))
+			return PSCI_E_INTERN_FAIL;
 		break;
 	case MPIDR_AFFLVL0:
 		break;

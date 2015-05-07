@@ -446,6 +446,11 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	unsigned int value;
 	unsigned long dickens_base;
 
+	INFO("%s cluster %u %s the coherency domain.\n",
+	     state == 1 ? "Adding" : "Removing",
+	     cluster,
+	     state == 1 ? "to" : "from");
+
 	if (is_x9())
 		dickens_base = DICKENS_BASE_X9;
 	else
@@ -453,13 +458,9 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 
 	initialize_cluster_info();
 
-	if (1 < cluster)
+	if (cluster >= number_of_clusters)
 		return -1;
 
-	printf("%s cluster %d %s the coherency domain.\n",
-	       state ? "Adding" : "Removing",
-	       cluster,
-	       state ? "to" : "from");
 	mask = (1 << get_bit_by_cluster(cluster));
 
 	for (i = 0; i < (sizeof(sdcr_offsets) / sizeof(unsigned int)); ++i) {

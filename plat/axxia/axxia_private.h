@@ -152,5 +152,6 @@ void bl2_plat_get_bl33_meminfo(struct meminfo *mem_info);
 
 int is_x9(void);
 int is_simulation(void);
+int set_cluster_coherency(unsigned, unsigned);
 
 #endif /* __AXXIA_PRIVATE_H__ */
