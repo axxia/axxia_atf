@@ -42,6 +42,9 @@
 #include "axxia_private.h"
 
 #define SYSCON_RESET_KEY	(SYSCON_BASE + 0x2000)
+#define SYSCON_RESET_CTRL	(SYSCON_BASE + 0x2008)
+#define   RSTCTL_RST_CHIP       (1<<1)
+#define   RSTCTL_RST_SYS        (1<<0)
 #define SYSCON_RESET_HOLD	(SYSCON_BASE + 0x2010)
 
 /*
@@ -160,14 +163,19 @@ static int32_t axxia_affinst_suspend(uint64_t mpidr,
 
 static void __dead2 axxia_system_off(void)
 {
-	ERROR("Axxia System Off: operation not handled.\n");
-	panic();
+	/* Best we can do here */
+	psci_power_down_wfi();
 }
 
 static void __dead2 axxia_system_reset(void)
 {
-	ERROR("Axxia System Reset: operation not handled.\n");
-	panic();
+	uint32_t ctrl;
+
+	mmio_write_32(SYSCON_RESET_KEY, 0xab);
+	ctrl = mmio_read_32(SYSCON_RESET_CTRL);
+	mmio_write_32(SYSCON_RESET_CTRL, ctrl | RSTCTL_RST_SYS);
+	/* ...in case it fails */
+	psci_power_down_wfi();
 }
 
 static const plat_pm_ops_t axxia_ops = {
