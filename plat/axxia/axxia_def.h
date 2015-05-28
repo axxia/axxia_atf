@@ -38,13 +38,17 @@
 #define DRAM_BASE		0x0000000000
 #define DRAM_SIZE		0x0040000000
 
-/* Base Peripherals */
-#define DEVICE0_BASE		0x8000000000
+/* XLF Base Peripherals */
+#define DEVICE0_BASE		0x4000000000
 #define DEVICE0_SIZE		0x0040000000
 
-/* AXIS Peripherals */
-#define DEVICE1_BASE		0x8080000000
+/* X9 Base Peripherals */
+#define DEVICE1_BASE		0x8000000000
 #define DEVICE1_SIZE		0x0040000000
+
+/* AXIS Peripherals */
+#define DEVICE2_BASE		0x8080000000
+#define DEVICE2_SIZE		0x0040000000
 
 /* GIC-500 */
 #define GICC_BASE		0x8001000000
