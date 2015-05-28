@@ -105,9 +105,11 @@ void gic_cpuif_setup(uintptr_t gicr_base)
 	write_scr(scr_val);
 	isb();	/* ensure NS=0 takes effect immediately */
 
+#if 0
+	/* This causes the boot to fail on XLF. */
 	write_icc_igrpen1_el3(0x3);
 	isb();
-
+#endif
 }
 
 /*******************************************************************************
