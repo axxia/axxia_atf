@@ -57,7 +57,11 @@ void gic_cpuif_setup(uintptr_t gicr_base)
 	unsigned int val, scr_val;
 	uintptr_t gicr_base_;
 
-	gicr_base_ = GICR_BASE;
+	if (is_x9())
+		gicr_base_ = GICR_BASE_X9;
+	else
+		gicr_base_ = GICR_BASE_XLF;
+
 	gicr_base = gicv3_get_rdist(gicr_base_, read_mpidr());
 
 	if (gicr_base == (uintptr_t)NULL)
@@ -105,11 +109,8 @@ void gic_cpuif_setup(uintptr_t gicr_base)
 	write_scr(scr_val);
 	isb();	/* ensure NS=0 takes effect immediately */
 
-#if 0
-	/* This causes the boot to fail on XLF. */
 	write_icc_igrpen1_el3(0x3);
 	isb();
-#endif
 }
 
 /*******************************************************************************
