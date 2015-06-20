@@ -166,10 +166,14 @@ static void gic_distif_setup(uintptr_t gicd_base)
 
 void axxia_gic_setup(void)
 {
-	uintptr_t gicd_base;
+	uintptr_t gicd_base_;
 
-	gicd_base = GICD_BASE;
-	gic_distif_setup(gicd_base);
+	if (is_x9())
+		gicd_base_ = GICD_BASE_X9;
+	else
+		gicd_base_ = GICD_BASE_XLF;
+
+	gic_distif_setup(gicd_base_);
 	gic_cpuif_setup(0);
 }
 
@@ -271,10 +275,14 @@ void plat_ic_end_of_interrupt(uint32_t id)
 uint32_t plat_ic_get_interrupt_type(uint32_t id)
 {
 	uint32_t group;
-	uintptr_t gicd_base;
+	uintptr_t gicd_base_;
 
-	gicd_base = GICD_BASE;
-	group = gicd_get_igroupr(gicd_base, id);
+	if (is_x9())
+		gicd_base_ = GICD_BASE_X9;
+	else
+		gicd_base_ = GICD_BASE_XLF;
+
+	group = gicd_get_igroupr(gicd_base_, id);
 
 	/* Assume that all secure interrupts are S-EL1 interrupts */
 	if (group == GRP0)

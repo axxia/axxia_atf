@@ -353,6 +353,13 @@ set_l3_state(unsigned int state)
 	volatile unsigned long *address;
 	unsigned long dickens_base;
 
+	/*
+	 * Skip for XLF simulation -- currently not suppported.
+	 */
+
+	if (!is_x9() && is_simulation())
+		return 0;
+
 	if (is_x9())
 		dickens_base = DICKENS_BASE_X9;
 	else
@@ -458,6 +465,13 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	     state == 1 ? "Adding" : "Removing",
 	     cluster,
 	     state == 1 ? "to" : "from");
+
+	/*
+	 * Skip for XLF simulation -- currently not suppported.
+	 */
+
+	if (!is_x9() && is_simulation())
+		return 0;
 
 	if (is_x9())
 		dickens_base = DICKENS_BASE_X9;
