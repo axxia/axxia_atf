@@ -426,11 +426,19 @@ static int
 initialize_cluster_info(void)
 {
 	if (is_x9()) {
-		number_of_clusters = 3;
-		bit_by_cluster[0] = 19;
-		bit_by_cluster[1] = 9;
-		bit_by_cluster[2] = 1;
-		bit_by_cluster[3] = -1;
+		if (is_simulation()) {
+			number_of_clusters = 4;
+			bit_by_cluster[0] = 9;
+			bit_by_cluster[1] = 19;
+			bit_by_cluster[2] = 1;
+			bit_by_cluster[3] = 11;
+		} else {
+			number_of_clusters = 3;
+			bit_by_cluster[0] = 19;
+			bit_by_cluster[1] = 9;
+			bit_by_cluster[2] = 1;
+			bit_by_cluster[3] = -1;
+		}
 	} else {
 		number_of_clusters = 1;
 		bit_by_cluster[0] = 17;

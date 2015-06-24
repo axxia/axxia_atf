@@ -68,6 +68,7 @@ int32_t axxia_affinst_on(uint64_t mpidr,
 		mmio_write_32(0x8031000000,
 			      (0x14000000 |
 			       (sec_entrypoint - 0x8031000000) / 4));
+		dsb();
 		hold = mmio_read_32(SYSCON_RESET_HOLD);
 		hold &= ~(1 << id);
 		mmio_write_32(SYSCON_RESET_KEY, 0xab);
