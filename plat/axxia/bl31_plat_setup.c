@@ -122,22 +122,6 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 	 * this cluster during cold boot.
 	 */
 	ccn_init(CCN504_BASE);
-
-	/*
-	 * Check params passed from BL2 should not be NULL,
-	 */
-#if 0
-	assert(from_bl2 != NULL);
-	assert(from_bl2->h.type == PARAM_BL31);
-	assert(from_bl2->h.version >= VERSION_1);
-
-	/*
-	 * Copy BL3-2 and BL3-3 entry point information.
-	 * They are stored in Secure RAM, in BL2's address space.
-	 */
-	bl32_ep_info = *from_bl2->bl32_ep_info;
-	bl33_ep_info = *from_bl2->bl33_ep_info;
-#endif
 }
 
 const unsigned int axxia_sec_irq[] = {
@@ -150,12 +134,7 @@ const unsigned int axxia_sec_irq[] = {
 void bl31_platform_setup(void)
 {
 	/* Initialize the gic cpu and distributor interfaces */
-#if 0
-	gic_init(GICC_BASE, GICD_BASE, GICR_BASE, axxia_sec_irq, 0);
-	gic_setup();
-#else
 	axxia_gic_setup();
-#endif
 }
 
 /*******************************************************************************
