@@ -52,17 +52,17 @@
  * Enable secure interrupts and use FIQs to route them. Disable legacy bypass
  * and set the priority mask register to allow all interrupts to trickle in.
  ******************************************************************************/
-void gic_cpuif_setup(uintptr_t gicr_base)
+void gic_cpuif_setup(void)
 {
 	unsigned int val, scr_val;
-	uintptr_t gicr_base_;
+	uintptr_t gicr_base;
 
 	if (is_x9())
-		gicr_base_ = GICR_BASE_X9;
+		gicr_base = GICR_BASE_X9;
 	else
-		gicr_base_ = GICR_BASE_XLF;
+		gicr_base = GICR_BASE_XLF;
 
-	gicr_base = gicv3_get_rdist(gicr_base_, read_mpidr());
+	gicr_base = gicv3_get_rdist(gicr_base, read_mpidr());
 
 	if (gicr_base == (uintptr_t)NULL)
 		panic();
@@ -174,7 +174,7 @@ void axxia_gic_setup(void)
 		gicd_base_ = GICD_BASE_XLF;
 
 	gic_distif_setup(gicd_base_);
-	gic_cpuif_setup(0);
+	gic_cpuif_setup();
 }
 
 /*******************************************************************************

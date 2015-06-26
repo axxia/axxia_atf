@@ -102,8 +102,7 @@ int32_t axxia_affinst_on_finish(uint64_t mpidr, uint32_t afflvl, uint32_t state)
 		/* Clear entrypoint branch */
 		mmio_write_32(0x8031000000, 0);
 		/* Enable the gic cpu interface */
-		gic_cpuif_setup(GICC_BASE);
-
+		gic_cpuif_setup();
 		break;
 	default:
 		WARN("Unsupported affinity level");

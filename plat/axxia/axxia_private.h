@@ -91,7 +91,7 @@ uint32_t ic_acknowledge_interrupt(void);
 uint32_t ic_get_interrupt_type(uint32_t id);
 void ic_end_of_interrupt(uint32_t id);
 void gic_cpuif_deactivate(uintptr_t gicc_base);
-void gic_cpuif_setup(uintptr_t gicc_base);
+void gic_cpuif_setup(void);
 void gic_pcpu_distif_setup(uintptr_t gicd_base);
 void axxia_gic_setup(void);
 uint32_t plat_interrupt_type_to_line(uint32_t type, uint32_t security_state);
