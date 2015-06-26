@@ -356,7 +356,6 @@ static unsigned int psci_afflvl0_on_finish(aff_map_node_t *cpu_node)
 	/*
 	 * Arch. management: Enable data cache and manage stack memory
 	 */
-	__asm__ __volatile__ ("7: b 7b");
 	psci_do_pwrup_cache_maintenance();
 
 	/*
