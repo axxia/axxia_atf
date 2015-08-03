@@ -47,8 +47,15 @@ func flush_dcache_range
 	sub	x3, x2, #1
 	bic	x0, x0, x3
 flush_loop:
+	/* Skip if memory isn't cachable. */
+	at	s1e3r, x0
+	mrs	x3, par_el1
+	lsr	x3, x3, 56
+	and	x3, x3, ~0x40
+	cbz	x3, 1f
+	/* Otherwise, ivalidate and clear. */
 	dc	civac, x0
-	add	x0, x0, x2
+1:	add	x0, x0, x2
 	cmp	x0, x1
 	b.lo    flush_loop
 	dsb	sy
