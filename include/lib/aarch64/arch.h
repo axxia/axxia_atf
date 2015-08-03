@@ -388,7 +388,7 @@
 #define LOWER_ATTRS(x)			(((x) & 0xfff) << 2)
 #define ATTR_SO				(0x0)
 #define ATTR_DEVICE			(0x0)
-#define ATTR_IWBWA_OWBWA_NTR		(0x0)
+#define ATTR_IWBWA_OWBWA_NTR		(0x44)
 #define MAIR_ATTR_SET(attr, index)	(attr << (index << 3))
 
 /* Exception Syndrome register bits and bobs */
