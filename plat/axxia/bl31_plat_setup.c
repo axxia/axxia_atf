@@ -419,10 +419,10 @@ initialize_cluster_info(void)
 			bit_by_cluster[3] = -1;
 		}
 	} else {
-		number_of_clusters = 1;
+		number_of_clusters = 3;
 		bit_by_cluster[0] = 17;
-		bit_by_cluster[1] = -1;
-		bit_by_cluster[2] = -1;
+		bit_by_cluster[1] = 11;
+		bit_by_cluster[2] = 29;
 		bit_by_cluster[3] = -1;
 	}
 
