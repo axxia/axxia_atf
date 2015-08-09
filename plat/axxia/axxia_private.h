@@ -35,6 +35,12 @@
 #include <platform_def.h>
 #include <stdint.h>
 
+/*
+ * If defined, leave the L3 in "Snoop Filter Only" mode.
+ */
+
+/*#define LEAVE_L3_IN_SFONLY*/
+
 /*******************************************************************************
  * Forward declarations
  ******************************************************************************/

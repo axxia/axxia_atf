@@ -384,6 +384,7 @@ flush_l3(void)
 		return;
 	}
 
+#ifndef LEAVE_L3_IN_SFONLY
 	rc = set_l3_state(0x3);
 
 	if (0 != rc) {
@@ -391,6 +392,7 @@ flush_l3(void)
 
 		return;
 	}
+#endif
 }
 
 /*
