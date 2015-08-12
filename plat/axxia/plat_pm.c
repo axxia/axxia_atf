@@ -92,6 +92,8 @@ int32_t axxia_affinst_on(uint64_t mpidr,
  */
 int32_t axxia_affinst_on_finish(uint64_t mpidr, uint32_t afflvl, uint32_t state)
 {
+	unsigned int oslar_el1 = 0;
+
 	switch (afflvl) {
 	case MPIDR_AFFLVL1:
 		if (0 != set_cluster_coherency((mpidr >> MPIDR_AFF1_SHIFT) &
@@ -103,6 +105,8 @@ int32_t axxia_affinst_on_finish(uint64_t mpidr, uint32_t afflvl, uint32_t state)
 		mmio_write_32(0x8031000000, 0);
 		/* Enable the gic cpu interface */
 		gic_cpuif_setup();
+		/* Write the OS Debug Lock. */
+		__asm__ __volatile__ ("msr OSLAR_EL1, %0" : : "r" (oslar_el1));
 		break;
 	default:
 		WARN("Unsupported affinity level");
