@@ -64,8 +64,8 @@
 #define FIP_IMAGE_NAME			"fip.bin"
 
 #define PLATFORM_CACHE_LINE_SIZE	64
-#define PLATFORM_CLUSTER_COUNT		4
-#define PLATFORM_CORE_COUNT             16
+#define PLATFORM_CLUSTER_COUNT		8
+#define PLATFORM_CORE_COUNT             32
 #define PLATFORM_NUM_AFFS		(PLATFORM_CLUSTER_COUNT + \
 					 PLATFORM_CORE_COUNT)
 #define MAX_IO_DEVICES			3
@@ -78,7 +78,6 @@
 #define TZROM_SIZE			0x0000008000
 
 #define TZRAM_BASE			0x8031001000
-/*#define TZRAM_BASE			0x007ffc1000*/
 #define TZRAM_SIZE			0x000003f000
 
 /*******************************************************************************

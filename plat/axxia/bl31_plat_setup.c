@@ -336,8 +336,11 @@ set_l3_state(unsigned int state)
 	 * Skip for XLF simulation -- currently not suppported.
 	 */
 
-	if (!is_x9() && is_simulation())
+	if (!is_x9() && is_simulation()) {
+		tf_printf("L3 State Not Available in XLF Simulation\n");
+
 		return 0;
+	}
 
 	if (is_x9())
 		dickens_base = DICKENS_BASE_X9;
@@ -401,31 +404,44 @@ flush_l3(void)
 */
 
 static int number_of_clusters;
-static int bit_by_cluster[4];
+static int bit_by_cluster[8];
 
 static int
 initialize_cluster_info(void)
 {
 	if (is_x9()) {
+		number_of_clusters = 4;
+
 		if (is_simulation()) {
-			number_of_clusters = 4;
 			bit_by_cluster[0] = 9;
 			bit_by_cluster[1] = 19;
 			bit_by_cluster[2] = 1;
 			bit_by_cluster[3] = 11;
+ 			bit_by_cluster[4] = -1;
+ 			bit_by_cluster[5] = -1;
+ 			bit_by_cluster[6] = -1;
+ 			bit_by_cluster[7] = -1;
 		} else {
-			number_of_clusters = 3;
 			bit_by_cluster[0] = 19;
 			bit_by_cluster[1] = 9;
 			bit_by_cluster[2] = 1;
 			bit_by_cluster[3] = -1;
+ 			bit_by_cluster[4] = -1;
+ 			bit_by_cluster[5] = -1;
+ 			bit_by_cluster[6] = -1;
+ 			bit_by_cluster[7] = -1;
 		}
 	} else {
-		number_of_clusters = 3;
+		number_of_clusters = 8;
+
 		bit_by_cluster[0] = 17;
-		bit_by_cluster[1] = 11;
-		bit_by_cluster[2] = 29;
+		bit_by_cluster[1] = -1;
+		bit_by_cluster[2] = 11;
 		bit_by_cluster[3] = -1;
+		bit_by_cluster[4] = 29;
+		bit_by_cluster[5] = -1;
+		bit_by_cluster[6] = -1;
+		bit_by_cluster[7] = -1;
 	}
 
 	return 0;
@@ -459,8 +475,11 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	 * Skip for XLF simulation -- currently not suppported.
 	 */
 
-	if (!is_x9() && is_simulation())
+	if (!is_x9() && is_simulation()) {
+		tf_printf("Coherency Not Settable in XLF Simulation\n");
+
 		return 0;
+	}
 
 	if (is_x9())
 		dickens_base = DICKENS_BASE_X9;
