@@ -37,13 +37,16 @@ unsigned int plat_get_aff_count(unsigned int aff_lvl, unsigned long mpidr)
 
 	switch (aff_lvl) {
 	case MPIDR_AFFLVL0:
-		num = 4; /* cores per cluster */
+		/* Cores per cluster. */
+		num = (PLATFORM_CORE_COUNT / PLATFORM_CLUSTER_COUNT);
 		break;
 	case MPIDR_AFFLVL1:
-		num = 4; /* clusters */
+		/* Clusters. */
+		num = PLATFORM_CLUSTER_COUNT;
 		break;
 	default:
-		num = 1; /* Report 1 (absent) instance at levels higher that the cluster level */
+		/* Report 1 (absent) at levels higher that a cluster. */
+		num = 1;
 	}
 
 	return num;
