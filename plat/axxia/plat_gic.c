@@ -158,7 +158,8 @@ static void gic_distif_setup(uintptr_t gicd_base)
 
 	/* Mark all lines of SPIs as Group 1 (non-secure) */
 	lines = gicd_read_typer(gicd_base) & IT_LINES_NO_MASK;
-	for (i = 0; i < lines; i++) {
+
+	for (i = 0; i <= lines; i++) {
 		mmio_write_32(gicd_base + GICD_IGROUPR + 4 + i * 4, ~0);
 		mmio_write_32(gicd_base + GICD_IGROUPMODR + 4 + i * 4, 0);
 	}
