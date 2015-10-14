@@ -135,6 +135,52 @@ void bl31_platform_setup(void)
 {
 	/* Initialize the gic cpu and distributor interfaces */
 	axxia_gic_setup();
+
+    /* Initialize global flags for NCA config ring access */
+    if (is_x9()) {
+        nca_base = NCA_X9_BASE;
+        need_nca_swap = 1;
+    } else {
+        nca_base = NCA_XLF_BASE;
+        need_nca_swap = 0;
+    }
+
+#ifdef TEMP_TEST_NCA_CR_ACCESS
+    NOTICE("nca_base = %llx\n", nca_base);
+    {
+        __uint32_t buf[8];
+        __uint32_t masks[4] = {0x00ff00ff, 0xff00ff00, 0xf0f0f0f0, 0xff0000ff};
+        __uint32_t values[4] = {0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef};
+        int i;
+
+
+        /* read NCA VAT (non-zero h/w default values) */
+        tf_printf("reading NCA VAT...\n");
+        ncr_read(NCP_REGION_ID(0x16, 0x10),  0x1000, 4, &buf[0]);
+        for (i = 0; i < 4; i++) tf_printf(" %08x\n", buf[i]);
+
+        /* write to NTIMC */
+        tf_printf("writing NTIMC\n");
+        for (i = 0; i < 8; i++) buf[i] = i | (i<<8) | (i<<16) | (i<<24);
+        ncr_write(NCP_REGION_ID(0, 2),  0x000, 8, &buf[0]);
+
+        for (i = 0; i < 8; i++) buf[i] = 0xdeadbeef;
+
+        tf_printf("reading NTIMC\n");
+        ncr_read(NCP_REGION_ID(0, 2),  0x000, 8, &buf[0]);
+        for (i = 0; i < 8; i++) tf_printf(" %08x\n", buf[i]);
+
+        tf_printf("modifying NTIMC\n");
+        ncr_modify(NCP_REGION_ID(2, 2),  0x0040, 4, masks, values);
+
+        tf_printf("reading NTIMC\n");
+        ncr_read(NCP_REGION_ID(2, 2),  0x040, 8, &buf[0]);
+        for (i = 0; i < 8; i++) tf_printf(" %08x\n", buf[i]);
+    }
+
+    while (1);
+#endif
+
 }
 
 /*******************************************************************************
@@ -258,6 +304,9 @@ display_gic(void)
 
 #include <mmio.h>
 
+__uint64_t nca_base;
+int need_nca_swap;
+
 int
 is_x9(void)
 {
@@ -301,7 +350,7 @@ get_cntr(void)
 	return cntpct;
 }
 
-static void
+void
 udelay(unsigned long us)
 {
 	unsigned long frequency;

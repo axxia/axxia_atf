@@ -160,4 +160,33 @@ int is_x9(void);
 int is_simulation(void);
 int set_cluster_coherency(unsigned, unsigned);
 
+extern __uint64_t nca_base;
+extern int need_nca_swap;
+
+#define NCP_NODE_ID(regionId)    (((regionId) >> 16) & 0xffff)
+#define NCP_TARGET_ID(regionId)  ((regionId) & 0xffff)
+#define NCP_REGION_ID(node, tgt) (((node & 0xffff) << 16 ) | (tgt & 0xffff))
+
+int
+ncr_read(__uint32_t region,
+         __uint32_t address,
+         int number, __uint32_t *buffer);
+int
+ncr_read32(__uint32_t region, __uint32_t offset, __uint32_t *value);
+
+int
+ncr_write(__uint32_t region,
+	  __uint32_t address,
+	  int number, __uint32_t *buffer);
+
+int
+ncr_write32(__uint32_t region, __uint32_t offset, __uint32_t value);
+
+int
+ncr_modify(__uint32_t region, __uint32_t address, int count,
+	   __uint32_t *masks, __uint32_t *values);
+
+int
+ncr_modify32( __uint32_t region, __uint32_t offset,
+	      __uint32_t mask, __uint32_t value );
 #endif /* __AXXIA_PRIVATE_H__ */
