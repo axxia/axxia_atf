@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2009 LSI Corporation
+ *  Copyright (C) 2015 Intel Corporation
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -20,15 +20,10 @@
  * MA 02111-1307 USA
  */
 
-#if 0
-#include <common.h>
-#include <asm/io.h>
-#include "../axxia-arm/ncp_nca_reg_defines.h"
-#endif
-
 #include <stddef.h>
 #include <string.h>
 #include <debug.h>
+#include "axxia_private.h"
 
 extern void
 udelay(unsigned long us);
@@ -42,10 +37,6 @@ udelay(unsigned long us);
 #define     NCP_NCA_CFG_PIO_CDR2                                (0x000000f8)
 #define     NCP_NCA_CDAR_MEMORY_BASE                            (0x00001000)
 
-#define NCP_NODE_ID(regionId)    (((regionId) >> 16) & 0xffff)
-#define NCP_TARGET_ID(regionId)  ((regionId) & 0xffff)
-#define NCP_REGION_ID(node, tgt) (((node & 0xffff) << 16 ) | (tgt & 0xffff))
-
 #define WFC_TIMEOUT (400000)
 
 #define LOCK_DOMAIN 0
@@ -53,13 +44,11 @@ udelay(unsigned long us);
 extern __uint64_t nca_base;
 extern int need_nca_swap;
 
-static int ncr_sysmem_mode_disabled = 1;
-static int ncr_tracer_disabled = 1;
+#define NCR_TRACER
+static int ncr_tracer_disabled = 0;
 void ncr_tracer_enable( void ) { ncr_tracer_disabled = 0; }
 void ncr_tracer_disable( void ) { ncr_tracer_disabled = 1; }
 int ncr_tracer_is_enabled( void ) { return 0 == ncr_tracer_disabled ? 1 : 0; }
-void ncr_sysmem_init_mode_enable(void) { ncr_sysmem_mode_disabled = 0; }
-void ncr_sysmem_init_mode_disable(void) { ncr_sysmem_mode_disabled = 1; }
 
 static __inline__ __uint32_t ncr_register_read(__uint64_t );
 static __inline__ void ncr_register_write(__uint32_t, __uint64_t );
@@ -80,8 +69,6 @@ acp_failure(const char *file, const char *function, const int line)
 static int
 __ncr_fail(const char *file, const char *function, const int line)
 {
-	if (1 == ncr_sysmem_mode_disabled)
-		return -1;
 	
 	tf_printf("Config Ring Access Failed: 0x%08lx 0x%08lx\n",
 	       ncr_register_read((nca_base + NCP_NCA_CFG_RING_ERROR_STAT_R0)),
@@ -94,80 +81,12 @@ __ncr_fail(const char *file, const char *function, const int line)
 #define ncr_fail(file, func, line) __ncr_fail(file, NULL, line);
 
 #ifdef NCR_TRACER
-static int short_read_count = 100;	/* Make sure this isn't in bss. */
-
-void
-ncr_trace_read8(__uint32_t region, __uint32_t offset)
-{
-	if (100 == short_read_count)
-		short_read_count = 0;
-
-	if (0 == short_read_count) {
-		++short_read_count;
-		tf_printf("ncpRead   -w8 0.%u.%u.0x00%08x",
-		       NCP_NODE_ID(region), NCP_TARGET_ID(region), offset);
-	} else {
-		++short_read_count;
-
-		if (64 == short_read_count) {
-			tf_printf(" 64\n");
-			short_read_count = 0;
-		}
-	}
-
-	return;
-}
-
-void
-ncr_trace_read16(__uint32_t region, __uint32_t offset)
-{
-	tf_printf("ncpRead    0.%u.%u.0x00%08x 1\n",
-	       NCP_NODE_ID(region), NCP_TARGET_ID(region), offset);
-
-	return;
-}
 
 void
 ncr_trace_read32(__uint32_t region, __uint32_t offset)
 {
 	tf_printf("ncpRead    0.%u.%u.0x00%08x 1\n",
 	       NCP_NODE_ID(region), NCP_TARGET_ID(region), offset);
-
-	return;
-}
-
-static int short_write_count = 100;	/* Make sure this isn't in bss. */
-
-void
-ncr_trace_write8(__uint32_t region, __uint32_t offset, __uint32_t value)
-{
-	if (100 == short_write_count)
-		short_write_count = 0;
-
-	if (0 == short_write_count) {
-		++short_write_count;
-		tf_printf("ncpWrite  -w8 0.%u.%u.0x00%08x 0x%02x",
-		       NCP_NODE_ID(region), NCP_TARGET_ID(region),
-		       offset, value);
-	} else {
-		++ short_write_count;
-		tf_printf(" 0x%02x", value);
-
-		if (4 == short_write_count) {
-			tf_printf("\n");
-			short_write_count = 0;
-		}
-	}
-
-	return;
-}
-
-void
-ncr_trace_write16(__uint32_t region,
-		  __uint32_t offset, __uint32_t value)
-{
-	tf_printf("ncpWrite   0.%u.%u.0x00%08x 0x%04x\n",
-	       NCP_NODE_ID(region), NCP_TARGET_ID(region), offset, value);
 
 	return;
 }
@@ -205,25 +124,9 @@ ncr_trace_poll(__uint32_t region,
 	return;
 }
 
-#define NCR_TRACE_READ8(region, offset) do {			\
-		if (ncr_tracer_is_enabled()) {			\
-			ncr_trace_read8(region, offset); }	\
-	} while (0);
-#define NCR_TRACE_READ16(region, offset) do {			\
-		if (ncr_tracer_is_enabled()) {			\
-			ncr_trace_read16(region, offset); }	\
-	} while (0);
 #define NCR_TRACE_READ32(region, offset) do {			\
 		if (ncr_tracer_is_enabled()) {			\
 			ncr_trace_read32(region, offset); }	\
-	} while (0);
-#define NCR_TRACE_WRITE8(region, offset, value) do {			\
-		if (ncr_tracer_is_enabled()) {				\
-			ncr_trace_write8(region, offset, value); }	\
-	} while (0);
-#define NCR_TRACE_WRITE16(region, offset, value) do {			\
-		if (ncr_tracer_is_enabled()) {				\
-			ncr_trace_write16(region, offset, value); }	\
 	} while (0);
 #define NCR_TRACE_WRITE32(region, offset, value) do {			\
 		if (ncr_tracer_is_enabled()) {				\
@@ -238,11 +141,7 @@ ncr_trace_poll(__uint32_t region,
 			ncr_trace_poll(region, loops, delay, offset, mask, value); } \
 	} while (0);
 #else
-#define NCR_TRACE_READ8(region, offset) {}
-#define NCR_TRACE_READ16(region, offset) {}
 #define NCR_TRACE_READ32(region, offset) {}
-#define NCR_TRACE_WRITE8(region, offset, value) {}
-#define NCR_TRACE_WRITE16(region, offset, value) {}
 #define NCR_TRACE_WRITE32(region, offset, value) {}
 #define NCR_TRACE_MODIFY(region, offset, mask, value) {}
 #define NCR_TRACE_POLL(region, loops, delay, offset, mask, value) {}
@@ -489,7 +388,7 @@ ncr_read32(__uint32_t region, __uint32_t offset, __uint32_t *value)
 	int rc = 0;
 
 	NCR_TRACE_READ32(region, offset);
-	rc = ncr_read(region, offset, 4, value);
+	rc = ncr_read(region, offset, 1, value);
 
 	if (0 != rc)
 		return ncr_fail(__FILE__, __FUNCTION__, __LINE__);
@@ -667,7 +566,7 @@ ncr_write32(__uint32_t region, __uint32_t offset, __uint32_t value)
 	int rc;
 
 	NCR_TRACE_WRITE32(region, offset, value);
-	rc = ncr_write(region, offset, 4, &value);
+	rc = ncr_write(region, offset, 1, &value);
 
 	if (0 != rc)
 		return ncr_fail(__FILE__, __FUNCTION__, __LINE__);

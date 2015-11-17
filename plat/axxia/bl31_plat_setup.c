@@ -176,8 +176,23 @@ void bl31_platform_setup(void)
         tf_printf("reading NTIMC\n");
         ncr_read(NCP_REGION_ID(2, 2),  0x040, 8, &buf[0]);
         for (i = 0; i < 8; i++) tf_printf(" %08x\n", buf[i]);
-    }
 
+        tf_printf("doing single word writes\n");
+        for (i = 0; i < 4; i++) {
+            ncr_write32(NCP_REGION_ID(0, 2), (i * 4), masks[i]);
+        }
+
+        tf_printf("doing single word reads\n");
+        for (i = 0; i < 4; i++) {
+            ncr_read32(NCP_REGION_ID(0, 2), (i * 4), &buf[i]);
+            tf_printf(" %08x\n", buf[i]);
+        }
+    }
+    while (1);
+#endif
+
+#ifdef TEMP_TEST_RETENTION_RESET
+    initiate_retention_reset();
     while (1);
 #endif
 

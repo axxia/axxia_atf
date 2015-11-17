@@ -64,9 +64,16 @@
 #define DICKENS_BASE_X9         0x8000000000
 #define DICKENS_BASE_XLF        0x4000000000
 
+/* ELM */
+#define ELM_BASE        0x8003C00000
+
 /* NCA */
 #define NCA_X9_BASE             0x8031080000
 #define NCA_XLF_BASE            0x8020000000
+
+/* TZC */
+#define TZC_X9_BASE     0x8004140000
+#define TZC_XLF_BASE    0x8005040000
 
 /* CCN-504 */
 #define CCN504_BASE		0x0000000000

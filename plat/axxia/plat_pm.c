@@ -41,11 +41,13 @@
 #include "axxia_def.h"
 #include "axxia_private.h"
 
+#define SYSCON_PSCRATCH     (SYSCON_BASE + 0x00dc)
 #define SYSCON_RESET_KEY	(SYSCON_BASE + 0x2000)
 #define SYSCON_RESET_CTRL	(SYSCON_BASE + 0x2008)
 #define   RSTCTL_RST_CHIP       (1<<1)
 #define   RSTCTL_RST_SYS        (1<<0)
 #define SYSCON_RESET_HOLD	(SYSCON_BASE + 0x2010)
+#define SYSCON_RESET_WO_SM  (SYSCON_BASE + 0x204c)
 
 /*
  * Handler called when an affinity instance is about to be turned on. The level
@@ -175,11 +177,21 @@ static void __dead2 axxia_system_off(void)
 	psci_power_down_wfi();
 }
 
+extern void __dead2 initiate_retention_reset(void);
+
 static void __dead2 axxia_system_reset(void)
 {
 	uint32_t ctrl;
+    uint32_t pscratch;
 
 	mmio_write_32(SYSCON_RESET_KEY, 0xab);
+
+    /* check for DDR retention reset */
+    pscratch = mmio_read_32(SYSCON_PSCRATCH);
+    if (pscratch & 0x00000001) {
+        initiate_retention_reset();
+    }
+
 	ctrl = mmio_read_32(SYSCON_RESET_CTRL);
 	mmio_write_32(SYSCON_RESET_CTRL, ctrl | RSTCTL_RST_SYS);
 	/* ...in case it fails */
@@ -202,4 +214,19 @@ int32_t platform_setup_pm(const plat_pm_ops_t **plat_ops)
 	mmio_write_32(SYSCON_BASE + 0x14, 0xffff);
 	*plat_ops = &axxia_ops;
 	return 0;
+}
+
+void __dead2 axxia_system_reset_wo_sm(void)
+{
+	uint32_t reg;
+
+    mmio_write_32(SYSCON_RESET_WO_SM, 1);
+    do {
+        reg = mmio_read_32(SYSCON_RESET_WO_SM);
+    } while (reg == 0);
+
+	reg = mmio_read_32(SYSCON_RESET_CTRL);
+	mmio_write_32(SYSCON_RESET_CTRL, reg | RSTCTL_RST_CHIP);
+	/* ...in case it fails */
+	psci_power_down_wfi();
 }

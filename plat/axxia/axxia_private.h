@@ -189,4 +189,7 @@ ncr_modify(__uint32_t region, __uint32_t address, int count,
 int
 ncr_modify32( __uint32_t region, __uint32_t offset,
 	      __uint32_t mask, __uint32_t value );
+
+void
+initiate_retention_reset(void);
 #endif /* __AXXIA_PRIVATE_H__ */

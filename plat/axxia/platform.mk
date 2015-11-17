@@ -65,7 +65,8 @@ BL31_SOURCES		+=	drivers/arm/gic/gic_v2.c		\
 				plat/axxia/aarch64/axxia_common.c	\
 				plat/axxia/plat_pm.c			\
 				plat/axxia/plat_topology.c      \
-				plat/axxia/ncr.c
+				plat/axxia/ncr.c				\
+				plat/axxia/ddr_retention.c
 
 NEED_BL33		:=	no
 
