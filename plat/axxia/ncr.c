@@ -44,7 +44,8 @@ udelay(unsigned long us);
 extern __uint64_t nca_base;
 extern int need_nca_swap;
 
-#define NCR_TRACER
+/* #define NCR_TRACER */
+
 static int ncr_tracer_disabled = 0;
 void ncr_tracer_enable( void ) { ncr_tracer_disabled = 0; }
 void ncr_tracer_disable( void ) { ncr_tracer_disabled = 1; }
