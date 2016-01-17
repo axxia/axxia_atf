@@ -37,9 +37,12 @@
 #include <string.h>
 #include <xlat_tables.h>
 
-
 #ifndef DEBUG_XLAT_TABLE
 #define DEBUG_XLAT_TABLE 0
+#endif
+
+#if DEBUG_XLAT_TABLE
+#include <stdio.h>
 #endif
 
 #if DEBUG_XLAT_TABLE
@@ -52,10 +55,10 @@ CASSERT(ADDR_SPACE_SIZE > 0, assert_valid_addr_space_size);
 
 #define UNSET_DESC	~0ul
 
-#define NUM_L1_ENTRIES (ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
+#define NUM_L1_ENTRIES 2 /*(ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)*/
 
-static uint64_t l1_xlation_table[NUM_L1_ENTRIES]
-__aligned(NUM_L1_ENTRIES * sizeof(uint64_t));
+static uint64_t l0_xlation_table[NUM_L1_ENTRIES]
+__aligned(0x1000);
 
 static uint64_t xlat_tables[MAX_XLAT_TABLES][XLAT_TABLE_ENTRIES]
 __aligned(XLAT_TABLE_SIZE) __attribute__((section("xlat_table")));
@@ -179,7 +182,7 @@ static int mmap_region_attr(mmap_region_t *mm, unsigned long base_va,
 		if ((mm->attr & attr) == attr)
 			continue; /* Region doesn't override attribs so skip */
 
-		attr &= mm->attr;
+		attr = mm->attr;
 
 		if (mm->base_va > base_va ||
 			mm->base_va + mm->size < base_va + size)
@@ -191,9 +194,9 @@ static mmap_region_t *init_xlation_table(mmap_region_t *mm,
 					unsigned long base_va,
 					unsigned long *table, unsigned level)
 {
-	unsigned level_size_shift = L1_XLAT_ADDRESS_SHIFT - (level - 1) *
-						XLAT_TABLE_ENTRIES_SHIFT;
-	unsigned level_size = 1 << level_size_shift;
+	unsigned level_size_shift = (L0_XLAT_ADDRESS_SHIFT -
+				     level * XLAT_TABLE_ENTRIES_SHIFT);
+	unsigned long level_size = 1UL << level_size_shift;
 	unsigned long level_index_mask = XLAT_TABLE_ENTRIES_MASK << level_size_shift;
 
 	assert(level <= 3);
@@ -209,8 +212,8 @@ static mmap_region_t *init_xlation_table(mmap_region_t *mm,
 			continue;
 		}
 
-		debug_print("      %010lx %8lx " + 6 - 2 * level, base_va,
-				level_size);
+		debug_print("        %010lx %010lx " + 8 - 2 * level,
+			    base_va, level_size);
 
 		if (mm->base_va >= base_va + level_size) {
 			/* Next region is after area so nothing to map yet */
@@ -277,7 +280,7 @@ static unsigned int calc_physical_addr_size_bits(unsigned long max_addr)
 void init_xlat_tables(void)
 {
 	print_mmap();
-	init_xlation_table(mmap, 0, l1_xlation_table, 1);
+	init_xlation_table(mmap, 0, l0_xlation_table, 0);
 	tcr_ps_bits = calc_physical_addr_size_bits(max_pa);
 	assert(max_va < ADDR_SPACE_SIZE);
 }
@@ -319,7 +322,7 @@ void init_xlat_tables(void)
 		write_tcr_el##_el(tcr);					\
 									\
 		/* Set TTBR bits as well */				\
-		ttbr = (uint64_t) l1_xlation_table;			\
+		ttbr = (uint64_t) l0_xlation_table;			\
 		write_ttbr0_el##_el(ttbr);				\
 									\
 		/* Ensure all translation table writes have drained */	\
@@ -332,10 +335,7 @@ void init_xlat_tables(void)
 		sctlr = read_sctlr_el##_el();				\
 		sctlr |= SCTLR_WXN_BIT | SCTLR_M_BIT;			\
 									\
-		if (flags & DISABLE_DCACHE)				\
-			sctlr &= ~SCTLR_C_BIT;				\
-		else							\
-			sctlr |= SCTLR_C_BIT;				\
+		sctlr &= ~SCTLR_C_BIT;					\
 									\
 		write_sctlr_el##_el(sctlr);				\
 									\
