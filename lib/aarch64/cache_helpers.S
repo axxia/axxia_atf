@@ -49,8 +49,15 @@
 	sub	x3, x2, #1
 	bic	x0, x0, x3
 loop_\op:
+	/* Skip if memory isn't cacable. */
+	at	s1e3r, x0
+	mrs	x3, par_el1
+	lsr	x3, x3, 56
+	and	x3, x3, ~0x40
+	cbz	x3, 1f
+	/* Otherwise, invalidate and clear. */
 	dc	\op, x0
-	add	x0, x0, x2
+1:	add	x0, x0, x2
 	cmp	x0, x1
 	b.lo    loop_\op
 	dsb	sy
@@ -149,6 +156,7 @@ loop3_\_op:
 	subs	x9, x9, x16		// decrement way number
 	b.ge	loop2_\_op
 
+	isb
 	b	level_done
 	.endm
 

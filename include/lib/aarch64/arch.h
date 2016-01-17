@@ -399,17 +399,18 @@
 #define XLAT_ENTRY_SIZE		(1 << XLAT_ENTRY_SIZE_SHIFT)
 
 #define XLAT_TABLE_SIZE_SHIFT	PAGE_SIZE_SHIFT
-#define XLAT_TABLE_SIZE		(1 << XLAT_TABLE_SIZE_SHIFT)
+#define XLAT_TABLE_SIZE		(1UL << XLAT_TABLE_SIZE_SHIFT)
 
 /* Values for number of entries in each MMU translation table */
 #define XLAT_TABLE_ENTRIES_SHIFT (XLAT_TABLE_SIZE_SHIFT - XLAT_ENTRY_SIZE_SHIFT)
-#define XLAT_TABLE_ENTRIES	(1 << XLAT_TABLE_ENTRIES_SHIFT)
+#define XLAT_TABLE_ENTRIES	(1UL << XLAT_TABLE_ENTRIES_SHIFT)
 #define XLAT_TABLE_ENTRIES_MASK	(XLAT_TABLE_ENTRIES - 1)
 
 /* Values to convert a memory address to an index into a translation table */
 #define L3_XLAT_ADDRESS_SHIFT	PAGE_SIZE_SHIFT
 #define L2_XLAT_ADDRESS_SHIFT	(L3_XLAT_ADDRESS_SHIFT + XLAT_TABLE_ENTRIES_SHIFT)
 #define L1_XLAT_ADDRESS_SHIFT	(L2_XLAT_ADDRESS_SHIFT + XLAT_TABLE_ENTRIES_SHIFT)
+#define L0_XLAT_ADDRESS_SHIFT	(L1_XLAT_ADDRESS_SHIFT + XLAT_TABLE_ENTRIES_SHIFT)
 
 /*
  * AP[1] bit is ignored by hardware and is
@@ -424,8 +425,8 @@
 #define ATTR_IWBWA_OWBWA_NTR_INDEX	0x0
 #define LOWER_ATTRS(x)			(((x) & 0xfff) << 2)
 #define ATTR_SO				(0x0)
-#define ATTR_DEVICE			(0x4)
-#define ATTR_IWBWA_OWBWA_NTR		(0xff)
+#define ATTR_DEVICE			(0x0)
+#define ATTR_IWBWA_OWBWA_NTR		(0x44)
 #define MAIR_ATTR_SET(attr, index)	(attr << (index << 3))
 
 /* Exception Syndrome register bits and bobs */
