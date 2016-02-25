@@ -61,7 +61,7 @@ void
 acp_failure(const char *file, const char *function, const int line)
 {
     tf_printf("\n%s:%s:%d - System Failure\n", file, function, line);
-    while (1) ;
+    while (1);
     return;
 }
 
@@ -71,7 +71,7 @@ acp_failure(const char *file, const char *function, const int line)
 static int
 __ncr_fail(const char *file, const char *function, const int line)
 {
-	
+
 	tf_printf("Config Ring Access Failed: 0x%08x 0x%08x\n",
 	       ncr_register_read((nca_base + NCP_NCA_CFG_RING_ERROR_STAT_R0)),
 	       ncr_register_read((nca_base + NCP_NCA_CFG_RING_ERROR_STAT_R1)));
@@ -153,8 +153,8 @@ ncr_trace_poll(__uint32_t region,
 
 /*
  * Note that these are the little-endian representation of
- * the NCA CDR registers.  The bit-field definitions will 
- * appear swapped with respect to the RDL. 
+ * the NCA CDR registers.  The bit-field definitions will
+ * appear swapped with respect to the RDL.
  */
 
 typedef union {
@@ -200,10 +200,10 @@ ncr_register_read(__uint64_t address)
 {
     __uint32_t *p = (__uint32_t *) address;
     volatile __uint32_t val = *p;
-    if (need_nca_swap) 
-    	return __builtin_bswap32(val);
+    if (need_nca_swap)
+		return __builtin_bswap32(val);
     else
-        return val;
+		return val;
 }
 
 /*
@@ -212,7 +212,7 @@ ncr_register_read(__uint64_t address)
 */
 
 static __inline__ void
-ncr_register_write( __uint32_t value, __uint64_t address) 
+ncr_register_write( __uint32_t value, __uint64_t address)
 {
     __uint32_t *p = (__uint32_t *) address;
     volatile __uint32_t val;

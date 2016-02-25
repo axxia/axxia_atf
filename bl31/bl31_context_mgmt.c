@@ -85,6 +85,7 @@ void cm_set_context_by_index(unsigned int cpu_idx, void *context,
 	set_cpu_data_by_index(cpu_idx, cpu_context[security_state], context);
 }
 
+#if 0
 #if !ERROR_DEPRECATED
 /*
  * These context management helpers are deprecated but are maintained for use
@@ -130,4 +131,5 @@ void cm_init_context(unsigned long mpidr, const entry_point_info_t *ep)
 	else
 		cm_init_context_by_index(platform_get_core_pos(mpidr), ep);
 }
+#endif
 #endif

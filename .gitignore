@@ -4,6 +4,7 @@ cscope.*
 *.patch
 .project
 .cproject
+.settings
 
 # Ignore build directory
 build/
@@ -14,3 +15,5 @@ tools/fip_create/fip_create
 tools/cert_create/src/*.o
 tools/cert_create/src/**/*.o
 tools/cert_create/cert_create
+charlie-build.sh
+*.gitignore

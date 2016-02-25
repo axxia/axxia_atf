@@ -28,36 +28,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <platform_def.h>
 #include <psci.h>
+#include <platform_def.h>
+#include <debug.h>
 
-unsigned int plat_get_aff_count(unsigned int aff_lvl, unsigned long mpidr)
+int32_t axxia_pwrc_validate_power_state(unsigned int power_state,
+					psci_power_state_t *req_state)
 {
-	int num;
+	/* Put power state table here */
+	printf("...axxia_pwrc_validate_power_state called\n");
+	return PSCI_E_SUCCESS;
 
-	switch (aff_lvl) {
-	case MPIDR_AFFLVL0:
-		/* Cores per cluster. */
-		num = (PLATFORM_CORE_COUNT / PLATFORM_CLUSTER_COUNT);
-		break;
-	case MPIDR_AFFLVL1:
-		/* Clusters. */
-		num = PLATFORM_CLUSTER_COUNT;
-		break;
-	default:
-		/* Report 1 (absent) at levels higher that a cluster. */
-		num = 1;
-	}
-
-	return num;
-}
-
-unsigned int plat_get_aff_state(unsigned int aff_lvl, unsigned long mpidr)
-{
-	return aff_lvl <= MPIDR_AFFLVL1 ? PSCI_AFF_PRESENT : PSCI_AFF_ABSENT;
-}
-
-int plat_get_max_afflvl()
-{
-	return MPIDR_AFFLVL1;
 }

@@ -28,7 +28,7 @@
 #include "axxia_private.h"
 
 /*
- * TODO! the ddr_retention_enabled flag should come from 
+ * TODO! the ddr_retention_enabled flag should come from
  * u-boot parameter file - how?!?
  */
 static int ddr_retention_enabled = 1;
@@ -74,16 +74,16 @@ ncp_cnal_regions_acp55xx[] = {
 };
 
 
-/* 
- * quiesce_vp_engine 
+/*
+ * quiesce_vp_engine
  *
- *   quiesce each of the Axxia VP engines by disallowing new memory 
- *   transactions and waiting for any outstanding memory transactions 
+ *   quiesce each of the Axxia VP engines by disallowing new memory
+ *   transactions and waiting for any outstanding memory transactions
  *   to complete.
  *
- *   If for some reason any outstanding transactions do not complete 
+ *   If for some reason any outstanding transactions do not complete
  *   within a reasonable time we just give up and continue on to the
- *   next. 
+ *   next.
  */
 
 static void
@@ -162,14 +162,17 @@ quiesce_axis(void)
     int num_regions;
     __uint64_t tzc_base;
 
-
-    tzc_base = is_x9() ? TZC_X9_BASE : TZC_XLF_BASE;
+#if defined(AXM5600)
+    tzc_base = TZC_X9_BASE;
+#else
+    tzc_base = TZC_XLF_BASE;
+#endif
 
     /* h/w defines this as number_of_regions_minus_one */
     num_regions = mmio_read_32(tzc_base) & 0x1f;
 
     /*
-     * for each trustzone region we 
+     * for each trustzone region we
      *  1 - clear s_wr_en and s_rd_en in the region_attributes register
      *  2 - clear nsaid_wr_en and nsaid_rd_en in region_id_access register
      */
@@ -186,24 +189,28 @@ reset_elm_trace(void)
 {
     int i;
     int num_elms;
-    __uint64_t elm_base; 
+    __uint64_t elm_base;
     __uint64_t dbg_ctl;
     __uint64_t cnt_ctl;
 
-    num_elms = is_x9() ? 2 : 4;
+#if defined(AXM5600)
+    num_elms = 2;
+#else
+    num_elms = 4;
+#endif
 
     for (i = 0; i < num_elms; i++) {
         elm_base = ELM_BASE + (i * 0x00010000);
         dbg_ctl = elm_base + 0x8000;
         cnt_ctl = elm_base + 0x0230;
 
-    	/* reset and disable ELM trace */
+		/* reset and disable ELM trace */
         mmio_write_32(dbg_ctl, 0x000fff04);
 
 	    /* reset ELM statistics */
         mmio_write_32(cnt_ctl, 1);
 
-    	/* re-enable ELM trace */
+		/* re-enable ELM trace */
         mmio_write_32(dbg_ctl, 0x000fff01);
     }
 }
@@ -229,4 +236,3 @@ initiate_retention_reset(void)
 
 	return;
 }
-

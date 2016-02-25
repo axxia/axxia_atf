@@ -37,6 +37,7 @@
 #include <platform.h>
 #include <stddef.h>
 #include "psci_private.h"
+#include <stdio.h>
 
 /*******************************************************************************
  * Per cpu non-secure contexts used to program the architectural state prior
@@ -155,10 +156,12 @@ static void populate_power_domain_tree(const unsigned char *topology)
 		 * - Increment parent_node_index to point to the next parent
 		 * - Accumulate the number of children at next level.
 		 */
+
 		for (i = 0; i < num_nodes_at_lvl; i++) {
-			assert(parent_node_index <=
-					PSCI_NUM_NON_CPU_PWR_DOMAINS);
+			assert(parent_node_index <=	PSCI_NUM_NON_CPU_PWR_DOMAINS);
+
 			num_children = topology[parent_node_index];
+
 
 			for (j = node_index;
 				j < node_index + num_children; j++)
@@ -207,6 +210,7 @@ static void populate_power_domain_tree(const unsigned char *topology)
 int psci_setup(void)
 {
 	const unsigned char *topology_tree;
+
 
 	/* Query the topology map from the platform */
 	topology_tree = plat_get_power_domain_tree_desc();

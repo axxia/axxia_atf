@@ -40,8 +40,12 @@
 	.globl	plat_crash_console_putc
 	.globl	plat_report_exception
 	.globl	plat_reset_handler
-	.globl	platform_get_core_pos
+	.globl	plat_my_core_pos
+	.globl  plat_is_my_cpu_primary
 	.globl	platform_mem_init
+	.globl	plat_secondary_cold_boot_setup
+
+	.globl	axxia_sec_entry_point
 
 	/* Define a crash console for the plaform */
 #define AXXIA_CRASH_CONSOLE_BASE	PL011_UART0_BASE
@@ -91,12 +95,55 @@ endfunc plat_report_exception
  * Return CPU number 0..16 (cluster * 4 + core)
  *---------------------------------------------
  */
-func platform_get_core_pos
+func plat_my_core_pos
+	mrs	x0, mpidr_el1
 	and	x1, x0, #MPIDR_CPU_MASK
 	and	x0, x0, #MPIDR_CLUSTER_MASK
 	add	x0, x1, x0, LSR #6
 	ret
-endfunc platform_get_core_pos
+endfunc plat_my_core_pos
+
+/* -----------------------------------------------------
+ * unsigned int plat_is_my_cpu_primary(void);
+ *
+ * This function checks if this is the Primary CPU
+ * -----------------------------------------------------
+ */
+func plat_is_my_cpu_primary
+	mrs	x0, mpidr_el1
+	and	x0, x0, #(MPIDR_CLUSTER_MASK | MPIDR_CPU_MASK)
+	cmp	x0, #AXXIA_PRIMARY_CPU
+	cset	x0, eq
+	ret
+endfunc plat_is_my_cpu_primary
+
+/* -----------------------------------------------------
+ * unsigned long plat_get_my_entrypoint (void);
+ *
+ * Main job of this routine is to distinguish between
+ * a cold and warm boot. If the tegra_sec_entry_point for
+ * this CPU is present, then it's a warm boot.
+ *
+ * -----------------------------------------------------
+ */
+func plat_get_my_entrypoint
+	adr	x1, axxia_sec_entry_point
+	ldr	x0, [x1]
+	ret
+endfunc plat_get_my_entrypoint
+
+/* -----------------------------------------------------
+ * void plat_secondary_cold_boot_setup (void);
+ *
+ * This function performs any platform specific actions
+ * needed for a secondary cpu after a cold reset. Right
+ * now this is a stub function.
+ * -----------------------------------------------------
+ */
+func plat_secondary_cold_boot_setup
+	mov	x0, #0
+	ret
+endfunc plat_secondary_cold_boot_setup
 
 /*-----------------------------------------------------
  * void platform_mem_init(void)
@@ -108,3 +155,13 @@ endfunc platform_get_core_pos
 func platform_mem_init
 	ret
 endfunc platform_mem_init
+
+	.data
+	.align 3
+
+	/* --------------------------------------------------
+	 * CPU Secure entry point - resume from suspend
+	 * --------------------------------------------------
+	 */
+axxia_sec_entry_point:
+	.quad	0

@@ -63,16 +63,46 @@
 /* Firmware Image Package */
 #define FIP_IMAGE_NAME			"fip.bin"
 
-#define PLATFORM_CACHE_LINE_SIZE	64
-#define PLATFORM_SYSTEM_COUNT           1
-#define PLATFORM_CLUSTER_COUNT		8
-#define PLATFORM_CORE_COUNT             32
-#define PLATFORM_NUM_AFFS		(PLATFORM_SYSTEM_COUNT +  \
-					 PLATFORM_CLUSTER_COUNT + \
-					 PLATFORM_CORE_COUNT)
-#define PLATFORM_MAX_AFFLVL             MPIDR_AFFLVL2
+
+#define PLATFORM_CACHE_LINE_SIZE	(64)
+#define PLATFORM_SYSTEM_COUNT		(1)
+#define PLATFORM_CLUSTER_COUNT		(8)
+#define PLATFORM_MAX_CPUS_PER_CLUSTER	(4)
+#define PLATFORM_CORE_COUNT		(PLATFORM_CLUSTER_COUNT * PLATFORM_MAX_CPUS_PER_CLUSTER)
+#define PLAT_NUM_PWR_DOMAINS		(PLATFORM_CORE_COUNT + PLATFORM_CLUSTER_COUNT + 1)
+#define PLAT_MAX_PWR_LVL		(MPIDR_AFFLVL2)
+
 #define MAX_IO_DEVICES			3
 #define MAX_IO_HANDLES			4
+
+#define AXXIA_PRIMARY_CPU		0x0
+/*
+ * Macros mapping the MPIDR Affinity levels to ARM Platform Power levels. The
+ * power levels have a 1:1 mapping with the MPIDR affinity levels.
+ */
+#define ARM_PWR_LVL0		MPIDR_AFFLVL0
+#define ARM_PWR_LVL1		MPIDR_AFFLVL1
+#define ARM_PWR_LVL2		MPIDR_AFFLVL2
+
+
+#define ARM_LOCAL_STATE_RUN	0
+/* Local power state for retention. Valid only for CPU power domains */
+#define ARM_LOCAL_STATE_RET	1
+/* Local power state for OFF/power-down. Valid for CPU and cluster power
+   domains */
+#define ARM_LOCAL_STATE_OFF	2
+
+
+/*
+ * Using the compatibility platform interfaces means that the local states
+ * used in psci_power_state_t need to only convey whether its power down
+ * or standby state. The onus is on the platform port to do the right thing
+ * including the state coordination in case multiple power down states are
+ * involved. Hence if we assume 3 generic states viz, run, standby and
+ * power down, we can assign 1 and 2 to standby and power down respectively.
+ */
+#define PLAT_MAX_RET_STATE	1
+#define PLAT_MAX_OFF_STATE	2
 
 /*******************************************************************************
  * Platform memory map related constants

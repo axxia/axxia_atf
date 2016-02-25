@@ -137,14 +137,14 @@ void bl31_platform_setup(void)
 	/* Initialize the gic cpu and distributor interfaces */
 	axxia_gic_setup();
 
-    /* Initialize global flags for NCA config ring access */
-    if (is_x9()) {
+	/* Initialize global flags for NCA config ring access */
+#if defined(AXM5600)
         nca_base = NCA_X9_BASE;
         need_nca_swap = 1;
-    } else {
+#else
         nca_base = NCA_XLF_BASE;
         need_nca_swap = 0;
-    }
+#endif
 
 #ifdef TEMP_TEST_NCA_CR_ACCESS
     NOTICE("nca_base = %llx\n", nca_base);
@@ -323,47 +323,6 @@ display_gic(void)
 __uint64_t nca_base;
 int need_nca_swap;
 
-int
-is_x9(void)
-{
-	unsigned int pfuse;
-
-	pfuse = mmio_read_32(SYSCON_BASE + 0x34);
-
-	return (0xb == (pfuse & 0x1f));
-}
-
-int
-is_xlf(void)
-{
-	return !is_x9();
-}
-
-int
-is_simulation(void)
-{
-	unsigned long *nca_e0;
-
-	if (is_x9())
-		nca_e0 = (unsigned long *)(NCA_X9_BASE + 0xe0);
-	else
-		nca_e0 = (unsigned long *)(NCA_XLF_BASE + 0xe0);
-
-	return (0 == *nca_e0);
-}
-
-int
-is_emulation(void)
-{
-	return !is_simulation();
-}
-
-int
-is_asic(void)
-{
-	return 0;
-}
-
 static unsigned long
 get_cntr_frq(void)
 {
@@ -419,16 +378,17 @@ set_l3_state(unsigned int state)
 	 * Skip for XLF simulation -- currently not suppported.
 	 */
 
-	if (!is_x9() && is_simulation()) {
-		tf_printf("L3 State Not Available in XLF Simulation\n");
+#if defined(AXC6700) && defined(SIMULATION)
+	tf_printf("L3 State Not Available in XLF Simulation\n");
 
-		return 0;
-	}
+	return 0;
+#endif
 
-	if (is_x9())
-		dickens_base = DICKENS_BASE_X9;
-	else
-		dickens_base = DICKENS_BASE_XLF;
+#if defined(AXM5600)
+	dickens_base = DICKENS_BASE_X9;
+#else
+	dickens_base = DICKENS_BASE_XLF;
+#endif
 
 	if (0 != (state & ~0x3))
 		return -1;
@@ -492,52 +452,53 @@ static int bit_by_cluster[12];	/* Last 4 are DSP on XLF */
 static int
 initialize_cluster_info(void)
 {
-	if (is_x9()) {
-		number_of_clusters = 4;
+#if defined(AXM5600)
 
-		if (is_simulation()) {
-			bit_by_cluster[0]  = 9;
-			bit_by_cluster[1]  = 19;
-			bit_by_cluster[2]  = 1;
-			bit_by_cluster[3]  = 11;
- 			bit_by_cluster[4]  = -1;
- 			bit_by_cluster[5]  = -1;
- 			bit_by_cluster[6]  = -1;
- 			bit_by_cluster[7]  = -1;
-			bit_by_cluster[8]  = -1;
-			bit_by_cluster[9]  = -1;
-			bit_by_cluster[10] = -1;
-			bit_by_cluster[11] = -1;
-		} else {
-			bit_by_cluster[0]  = 19;
-			bit_by_cluster[1]  = 9;
-			bit_by_cluster[2]  = 1;
-			bit_by_cluster[3]  = -1;
- 			bit_by_cluster[4]  = -1;
- 			bit_by_cluster[5]  = -1;
- 			bit_by_cluster[6]  = -1;
- 			bit_by_cluster[7]  = -1;
-			bit_by_cluster[8]  = -1;
-			bit_by_cluster[9]  = -1;
-			bit_by_cluster[10] = -1;
-			bit_by_cluster[11] = -1;
-		}
-	} else {
-		number_of_clusters = 12;
+	number_of_clusters = 4;
+#if defined(SIMULATION)
+	bit_by_cluster[0]  = 9;
+	bit_by_cluster[1]  = 19;
+	bit_by_cluster[2]  = 1;
+	bit_by_cluster[3]  = 11;
+	bit_by_cluster[4]  = -1;
+	bit_by_cluster[5]  = -1;
+	bit_by_cluster[6]  = -1;
+	bit_by_cluster[7]  = -1;
+	bit_by_cluster[8]  = -1;
+	bit_by_cluster[9]  = -1;
+	bit_by_cluster[10] = -1;
+	bit_by_cluster[11] = -1;
+#else
+	bit_by_cluster[0]  = 19;
+	bit_by_cluster[1]  = 9;
+	bit_by_cluster[2]  = 1;
+	bit_by_cluster[3]  = -1;
+	bit_by_cluster[4]  = -1;
+	bit_by_cluster[5]  = -1;
+	bit_by_cluster[6]  = -1;
+	bit_by_cluster[7]  = -1;
+	bit_by_cluster[8]  = -1;
+	bit_by_cluster[9]  = -1;
+	bit_by_cluster[10] = -1;
+	bit_by_cluster[11] = -1;
+#endif
 
-		bit_by_cluster[0]  = 17;
-		bit_by_cluster[1]  = -1;
-		bit_by_cluster[2]  = 11;
-		bit_by_cluster[3]  = -1;
-		bit_by_cluster[4]  = 29;
-		bit_by_cluster[5]  = -1;
-		bit_by_cluster[6]  = -1;
-		bit_by_cluster[7]  = -1;
-		bit_by_cluster[8]  = 14;
-		bit_by_cluster[9]  = 15;
-		bit_by_cluster[10] = 32;
-		bit_by_cluster[11] = -1;
-	}
+#else
+
+	number_of_clusters = 12;
+	bit_by_cluster[0]  = 17;
+	bit_by_cluster[1]  = -1;
+	bit_by_cluster[2]  = 11;
+	bit_by_cluster[3]  = -1;
+	bit_by_cluster[4]  = 29;
+	bit_by_cluster[5]  = -1;
+	bit_by_cluster[6]  = -1;
+	bit_by_cluster[7]  = -1;
+	bit_by_cluster[8]  = 14;
+	bit_by_cluster[9]  = 15;
+	bit_by_cluster[10] = 32;
+	bit_by_cluster[11] = -1;
+#endif
 
 	return 0;
 }
@@ -571,16 +532,17 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	 * Skip for XLF simulation -- currently not suppported.
 	 */
 
-	if (!is_x9() && is_simulation()) {
-		tf_printf("Coherency Not Settable in XLF Simulation\n");
+#if defined(AXC6700) && defined(SIMULATION)
+	tf_printf("Coherency Not Settable in XLF Simulation\n");
 
-		return 0;
-	}
+	return 0;
+#endif
 
-	if (is_x9())
-		dickens_base = DICKENS_BASE_X9;
-	else
-		dickens_base = DICKENS_BASE_XLF;
+#if defined(AXM5600)
+	dickens_base = DICKENS_BASE_X9;
+#else
+	dickens_base = DICKENS_BASE_XLF;
+#endif
 
 	initialize_cluster_info();
 
@@ -639,6 +601,10 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 void
 bl31_plat_runtime_setup(void)
 {
+#if defined(AXC6700) && defined(EMULATION)
+	unsigned int super = 0;
+#endif
+
 	if (0 != set_cluster_coherency(0, 1))
 		tf_printf("Adding cluster 0 to the coherency domain failed!\n");
 
@@ -648,44 +614,40 @@ bl31_plat_runtime_setup(void)
 	  super frios.
 	*/
 
-	if (is_xlf() && is_emulation()) {
-		unsigned int super = 0;
+#if defined(AXC6700) && defined(EMULATION)
+	super = mmio_read_32(NCAP + 0x50018);
 
-		if (is_emulation()) {
-			super = mmio_read_32(NCAP + 0x50018);
+	if (super != 0)
+		super = 1;
 
-			if (super != 0)
-				super = 1;
-		}
+	INFO("Setting up DSP Coherency\n");
 
-		INFO("Setting up DSP Coherency\n");
+	/* Reset/Enable the DSP Cluster L2s */
+	mmio_write_32((CDC0 + 0x2030), 0);
+	udelay(100);
+	mmio_write_32((CDC0 + 0x2030), 1);
 
-		/* Reset/Enable the DSP Cluster L2s */
-		mmio_write_32((CDC0 + 0x2030), 0);
+	if (0 != super) {
+		mmio_write_32((CDC1 + 0x2030), 0);
 		udelay(100);
-		mmio_write_32((CDC0 + 0x2030), 1);
-
-		if (0 != super) {
-			mmio_write_32((CDC1 + 0x2030), 0);
-			udelay(100);
-			mmio_write_32((CDC1 + 0x2030), 1);
-			mmio_write_32((CDC2 + 0x2030), 0);
-			udelay(100);
-			mmio_write_32((CDC2 + 0x2030), 1);
-		}
-
-		/* Add to the Coherency Domain */
-		if (0 != set_cluster_coherency(8, 1))
-			tf_printf("Adding DSP cluster 0 to the coherency domain failed!\n");
-
-		if (0 != super) {
-			if (0 != set_cluster_coherency(9, 1))
-				tf_printf("Adding DSP cluster 1 to the coherency domain failed!\n");
-
-			if (0 != set_cluster_coherency(10, 1))
-				tf_printf("Adding DSP cluster 2 to the coherency domain failed!\n");
-		}
+		mmio_write_32((CDC1 + 0x2030), 1);
+		mmio_write_32((CDC2 + 0x2030), 0);
+		udelay(100);
+		mmio_write_32((CDC2 + 0x2030), 1);
 	}
+
+	/* Add to the Coherency Domain */
+	if (0 != set_cluster_coherency(8, 1))
+		tf_printf("Adding DSP cluster 0 to the coherency domain failed!\n");
+
+	if (0 != super) {
+		if (0 != set_cluster_coherency(9, 1))
+			tf_printf("Adding DSP cluster 1 to the coherency domain failed!\n");
+
+		if (0 != set_cluster_coherency(10, 1))
+			tf_printf("Adding DSP cluster 2 to the coherency domain failed!\n");
+	}
+#endif
 
 	return;
 }
