@@ -91,6 +91,13 @@ unsigned long plat_get_ns_image_entrypoint(void)
 
 uint64_t plat_get_syscnt_freq(void)
 {
-	uint64_t counter_base_frequency = 4000000;
-	return counter_base_frequency;
+	uint64_t cntfrq;
+
+	/*
+	  This gets set by the previous stage -- don't change it!
+	*/
+
+	__asm__ __volatile__("mrs %0, cntfrq_el0" : "=r" (cntfrq));
+
+	return cntfrq;
 }
