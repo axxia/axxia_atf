@@ -91,13 +91,14 @@ unsigned long plat_get_ns_image_entrypoint(void)
 
 uint64_t plat_get_syscnt_freq(void)
 {
-	uint64_t cntfrq;
+	static uint64_t cntfrq = 0;
 
 	/*
 	  This gets set by the previous stage -- don't change it!
 	*/
 
-	__asm__ __volatile__("mrs %0, cntfrq_el0" : "=r" (cntfrq));
+	if (0 == plat_my_core_pos() && 0 == cntfrq)
+		__asm__ __volatile__("mrs %0, cntfrq_el0" : "=r" (cntfrq));
 
 	return cntfrq;
 }
