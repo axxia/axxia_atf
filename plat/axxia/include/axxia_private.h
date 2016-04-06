@@ -154,7 +154,10 @@ void bl2_plat_get_bl32_meminfo(struct meminfo *mem_info);
 void bl2_plat_get_bl33_meminfo(struct meminfo *mem_info);
 
 int is_x9(void);
+int is_xlf(void);
 int is_simulation(void);
+int is_emulation(void);
+int is_asic(void);
 int set_cluster_coherency(unsigned, unsigned);
 
 extern __uint64_t nca_base;

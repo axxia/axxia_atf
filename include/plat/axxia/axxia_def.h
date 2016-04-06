@@ -72,11 +72,24 @@
 #define NCA_XLF_BASE            0x8020000000
 
 /* TZC */
-#define TZC_X9_BASE     0x8004140000
-#define TZC_XLF_BASE    0x8005040000
+#define TZC_X9_BASE             0x8004140000
+#define TZC_XLF_BASE            0x8005040000
 
 /* CCN-504 */
 #define CCN504_BASE		0x0000000000
+
+/* GPREGs and SCBs */
+#define MMAP_GPREG              0x8032900000 /* 0x170.0 */
+#define MMAP_SCB                0x8032000000 /* 0x170.1 */
+#define PERIPH_GPREG            0x8080230000 /* 0x171.0 */
+#define PERIPH_SCB              0x8080400000 /* 0x171.1 */
+
+/* DSPs, XLF Only */
+#define NCAP                    0x8004000000 /* 0x168.0 */
+#define CDC0                    0x8004400000 /* 0x169.0 */
+#define CDC1                    0x8004420000 /* 0x169.1 */
+#define CDC2                    0x8004440000 /* 0x169.2 */
+#define CDC3                    0x8004480000 /* 0x169.3 */
 
 /* UART0-3 */
 #define PL011_UART0_BASE	0x8080000000
