@@ -127,17 +127,25 @@ void axxia_cpu_standby(plat_local_state_t cpu_state)
  ******************************************************************************/
 int axxia_pwr_domain_on(u_register_t mpidr)
 {
-	int rc = PSCI_E_SUCCESS;
-	int cpu;
+	unsigned int cpu;
+	unsigned int hold;
 
-	int  cluster_id = (mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK;
-	int cpu_id = (mpidr >> MPIDR_AFF0_SHIFT) & MPIDR_AFFLVL_MASK;
+	cpu = (((mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK) * 4) +
+		((mpidr >> MPIDR_AFF0_SHIFT) & MPIDR_AFFLVL_MASK);
+	
+	mmio_write_32(0x8031000000,
+		      (0x14000000 |
+		       (axxia_sec_entry_point - 0x8031000000) / 4));
+	dsb();
+	hold = mmio_read_32(SYSCON_RESET_HOLD);
 
-	cpu = (cluster_id * 4) + cpu_id;
-	rc = axxia_pwrc_cpu_powerup(cpu);
+	hold &= ~(1 << cpu);
+	mmio_write_32(SYSCON_RESET_KEY, 0xab);
+	mmio_write_32(SYSCON_RESET_HOLD, hold | (1 << cpu));
+	mmio_write_32(SYSCON_RESET_HOLD, hold);
+	mmio_write_32(SYSCON_RESET_KEY, 0x00);
 
-	return rc;
-
+	return PSCI_E_SUCCESS;
 }
 
 /*******************************************************************************
@@ -192,17 +200,40 @@ void axxia_pwr_domain_suspend(const psci_power_state_t *target_state)
 	WARN("Called axxia_pwr_domain_suspend\n");
 }
 
-/*******************************************************************************
- * FVP handler called when a power domain has just been powered on after
- * being turned off earlier. The target_state encodes the low power state that
- * each level has woken up from.
- ******************************************************************************/
-void axxia_pwr_domain_on_finish(const psci_power_state_t *target_state)
-{
-	unsigned int oslar_el1 = 0;
-//	unsigned int mpidr;
+/*
+  ------------------------------------------------------------------------------
+  axxia_pwr_domain_on_finish
 
-	if (target_state->pwr_domain_state[ARM_PWR_LVL0] == PLAT_MAX_OFF_STATE) {
+  This gets run by the "power domain" that just got powered up.  So,
+  in the case of a core, this get's run by the core that just got
+  enabled before it gets sent to the OS or application (secondary
+  entry point).
+
+  The first entry in target_state should always be 2
+  (ARM_LOCAL_STATE_OFF) because the core was off before it got enabled
+  and index 0 is for cores (level 0).  The second entry will be 2 if
+  this is the first core in a cluster to be enabled.
+*/
+
+void
+axxia_pwr_domain_on_finish(const psci_power_state_t *target_state)
+{
+	const plat_local_state_t *state;
+	unsigned int cluster;
+	unsigned int mpidr;
+
+	flush_dcache_range(0x8031000000ULL, (256 * 1024));
+
+	state = &target_state->pwr_domain_state[0];
+	mpidr = read_mpidr();
+	cluster = (mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK;
+
+	if (PLAT_MAX_OFF_STATE == state[ARM_PWR_LVL1])
+		if (0 != set_cluster_coherency(cluster, 1))
+			WARN("Failed to make cluster %u coherent!\n", cluster);
+
+	if (PLAT_MAX_OFF_STATE == state[ARM_PWR_LVL0]) {
+		unsigned int oslar_el1 = 0;
 
 		/* Clear entrypoint branch */
 		mmio_write_32(0x8031000000, 0);
@@ -210,11 +241,9 @@ void axxia_pwr_domain_on_finish(const psci_power_state_t *target_state)
 		gic_cpuif_setup();
 		/* Write the OS Debug Lock. */
 		__asm__ __volatile__ ("msr OSLAR_EL1, %0" : : "r" (oslar_el1));
-
 	}
 
 	return;
-
 }
 
 /*******************************************************************************
