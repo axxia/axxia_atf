@@ -162,11 +162,10 @@ quiesce_axis(void)
     int num_regions;
     __uint64_t tzc_base;
 
-#if defined(AXM5600)
-    tzc_base = TZC_X9_BASE;
-#else
-    tzc_base = TZC_XLF_BASE;
-#endif
+    if (IS_5600())
+	    tzc_base = TZC_X9_BASE;
+    else
+	    tzc_base = TZC_XLF_BASE;
 
     /* h/w defines this as number_of_regions_minus_one */
     num_regions = mmio_read_32(tzc_base) & 0x1f;
@@ -193,11 +192,10 @@ reset_elm_trace(void)
     __uint64_t dbg_ctl;
     __uint64_t cnt_ctl;
 
-#if defined(AXM5600)
-    num_elms = 2;
-#else
-    num_elms = 4;
-#endif
+    if (IS_5600())
+	    num_elms = 2;
+    else
+	    num_elms = 4;
 
     for (i = 0; i < num_elms; i++) {
         elm_base = ELM_BASE + (i * 0x00010000);

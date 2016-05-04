@@ -66,7 +66,10 @@ typedef enum  {
 	MT_RW		= 1 << 1,
 
 	MT_SECURE	= 0 << 2,
-	MT_NS		= 1 << 2
+	MT_NS		= 1 << 2,
+
+	MT_UNCACHED     = 0 << 3,
+	MT_CACHED       = 1 << 3
 } mmap_attr_t;
 
 /*

@@ -31,6 +31,41 @@
 #ifndef __AXXIA_DEF_H__
 #define __AXXIA_DEF_H__
 
+#ifndef __ASSEMBLY__
+
+typedef enum {
+	AXXIA_5600 = 0,
+	AXXIA_6700 = 1
+} axxia_target_t;
+
+typedef enum {
+	AXXIA_SIM = 0,
+	AXXIA_EMU = 1,
+	AXXIA_HW = 2
+} axxia_platform_t;
+
+typedef enum {
+	AXXIA_NONE = 0,
+	AXXIA_SYSCACHE_ONLY = 1
+} axxia_option_t;
+
+typedef struct axxia_configuration {
+	axxia_target_t target;
+	axxia_platform_t platform;
+	axxia_option_t option;
+} axxia_configuration_t;
+
+extern axxia_configuration_t axxia_configuration;
+
+#define IS_5600() (AXXIA_5600 == axxia_configuration.target)
+#define IS_6700() (AXXIA_6700 == axxia_configuration.target)
+#define IS_SIM()  (AXXIA_SIM == axxia_configuration.platform)
+#define IS_EMU()  (AXXIA_EMU == axxia_configuration.platform)
+#define IS_HW()   (AXXIA_HW == axxia_configuration.platform)
+#define IS_SYSCACHE_ONLY() (AXXIA_SYSCACHE_ONLY == axxia_configuration.option)
+
+#endif
+
 /*******************************************************************************
  * Axxia memory map related constants
  ******************************************************************************/
@@ -38,17 +73,17 @@
 #define DRAM_BASE		0x0000000000
 #define DRAM_SIZE		0x0040000000
 
-/* XLF Base Peripherals */
-#define DEVICE0_BASE		0x4000000000
+/* XLF CCN */
+#define XLF_CCN_BASE	        0x4000000000
+#define XLF_CCN_SIZE	        0x0040000000
+
+/* X9 CCN and XLF/X9 GIC */
+#define DEVICE0_BASE		0x8000000000
 #define DEVICE0_SIZE		0x0040000000
 
-/* X9 Base Peripherals */
-#define DEVICE1_BASE		0x8000000000
-#define DEVICE1_SIZE		0x0040000000
-
 /* AXIS Peripherals */
-#define DEVICE2_BASE		0x8080000000
-#define DEVICE2_SIZE		0x0040000000
+#define DEVICE1_BASE		0x8080000000
+#define DEVICE1_SIZE		0x0040000000
 
 /* GIC-500 */
 #define GICC_BASE		0x8001000000
@@ -65,7 +100,7 @@
 #define DICKENS_BASE_XLF        0x4000000000
 
 /* ELM */
-#define ELM_BASE        0x8003C00000
+#define ELM_BASE                0x8003C00000
 
 /* NCA */
 #define NCA_X9_BASE             0x8031080000

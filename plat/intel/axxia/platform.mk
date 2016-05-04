@@ -28,42 +28,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Make sure either AXM5600 or AXC6700 is defined, but not both.
-
-ifneq ($(and $(AXM5600),$(AXC6700)),)
-$(error "Only one of AXM5600 or AXC6700 can be defined!")
-endif
-
-ifeq ($(or $(AXM5600),$(AXC6700)),)
-$(error "One of AXM5600 or AXC6700 must be defined!")
-endif
-
-# Simulation and Emulation are optional, but can't both be defined.
-
-ifneq ($(and $(SIMULATION),$(EMULATION)),)
-$(error "Only one of SIMULATION or EMULATION can be defined!")
-endif
-
 # Disable the PSCI platform compatibility layer
 ENABLE_PLAT_COMPAT := 0
 
 PLAT_INCLUDES := -Iplat/intel/axxia/include
-
-ifdef AXM5600
-PLAT_INCLUDES += -Iplat/intel/axxia/include/axm5600 -DAXM5600
-endif
-
-ifdef AXC6700
-PLAT_INCLUDES += -Iplat/intel/axxia/include/axc6700 -DAXC6700
-endif
-
-ifdef SIMULATION
-PLAT_INCLUDES += -DSIMULATION
-endif
-
-ifdef EMULATION
-PLAT_INCLUDES += -DEMULATION
-endif
 
 PLAT_BL_COMMON_SOURCES :=                       \
 	drivers/arm/pl011/pl011_console.S	\

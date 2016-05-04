@@ -420,10 +420,12 @@
 #define AP_RW			(0x0 << 5)
 
 #define NS				(0x1 << 3)
+#define ATTR_ZZZ_INDEX                  0x3
 #define ATTR_SO_INDEX			0x2
 #define ATTR_DEVICE_INDEX		0x1
 #define ATTR_IWBWA_OWBWA_NTR_INDEX	0x0
 #define LOWER_ATTRS(x)			(((x) & 0xfff) << 2)
+#define ATTR_ZZZ                        (0x77)
 #define ATTR_SO				(0x0)
 #define ATTR_DEVICE			(0x0)
 #define ATTR_IWBWA_OWBWA_NTR		(0x44)

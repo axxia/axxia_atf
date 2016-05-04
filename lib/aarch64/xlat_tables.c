@@ -147,7 +147,11 @@ static unsigned long mmap_desc(unsigned attr, unsigned long addr_pa,
 	desc |= LOWER_ATTRS(ACCESS_FLAG);
 
 	if (attr & MT_MEMORY) {
-		desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
+		if (attr & MT_CACHED)
+			desc |= LOWER_ATTRS(ATTR_ZZZ_INDEX | ISH);
+		else
+			desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
+
 		if (attr & MT_RW)
 			desc |= UPPER_ATTRS(XN);
 	} else {
@@ -305,7 +309,9 @@ void init_xlat_tables(void)
 		assert((read_sctlr_el##_el() & SCTLR_M_BIT) == 0);	\
 									\
 		/* Set attributes in the right indices of the MAIR */	\
-		mair = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);	\
+		mair = MAIR_ATTR_SET(ATTR_ZZZ, ATTR_ZZZ_INDEX);		\
+		mair |= MAIR_ATTR_SET(ATTR_SO, ATTR_SO_INDEX);		\
+		mair |= MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);	\
 		mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR,		\
 				ATTR_IWBWA_OWBWA_NTR_INDEX);		\
 		write_mair_el##_el(mair);				\
@@ -335,7 +341,10 @@ void init_xlat_tables(void)
 		sctlr = read_sctlr_el##_el();				\
 		sctlr |= SCTLR_WXN_BIT | SCTLR_M_BIT;			\
 									\
-		sctlr &= ~SCTLR_C_BIT;					\
+		if (flags & DISABLE_DCACHE)				\
+			sctlr &= ~SCTLR_C_BIT;				\
+		else							\
+			sctlr |= SCTLR_C_BIT;				\
 									\
 		write_sctlr_el##_el(sctlr);				\
 									\

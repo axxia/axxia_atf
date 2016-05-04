@@ -38,51 +38,45 @@
 #include <xlat_tables.h>
 #include <axxia_def.h>
 
-/*
- * Table of regions to map using the MMU.
- * This doesn't include Trusted RAM as the 'mem_layout' argument passed to
- * configure_mmu_elx() will give the available subset of that,
- */
-static const mmap_region_t axxia_mmap[] = {
-	{ DEVICE0_BASE,	DEVICE0_BASE, DEVICE0_SIZE,
-	  MT_DEVICE | MT_RW | MT_SECURE },
-	{ DEVICE1_BASE,	DEVICE1_BASE, DEVICE1_SIZE,
-	  MT_DEVICE | MT_RW | MT_SECURE },
-	{ DEVICE2_BASE,	DEVICE2_BASE, DEVICE2_SIZE,
-	  MT_DEVICE | MT_RW | MT_SECURE },
-	{ DRAM_BASE, DRAM_BASE,	DRAM_SIZE,
-	  MT_MEMORY | MT_RW | MT_SECURE },
-	{0}
-};
-
 /*******************************************************************************
  * Macro generating the code for the function setting up the pagetables as per
  * the platform memory map & initialize the mmu, for the given exception level
  ******************************************************************************/
-#define DEFINE_CONFIGURE_MMU_EL(_el)				   \
-	void configure_mmu_el##_el(unsigned long total_base,	   \
-				  unsigned long total_size,	   \
-				  unsigned long ro_start,	   \
-				  unsigned long ro_limit,	   \
-				  unsigned long coh_start,	   \
-				  unsigned long coh_limit)	   \
-	{							   \
-	       mmap_add_region(ro_start, ro_start,		   \
-			       ro_limit - ro_start,		   \
-			       MT_MEMORY | MT_RO | MT_SECURE);	   \
-	       mmap_add_region(ro_limit, ro_limit,                 \
-			       TZRAM_SIZE - (ro_limit - ro_start), \
-			       MT_MEMORY | MT_RW | MT_SECURE);	   \
-	       mmap_add(axxia_mmap);				   \
-	       init_xlat_tables();				   \
-								   \
-	       enable_mmu_el##_el(0);				   \
+#define DEFINE_CONFIGURE_MMU_EL(_el)				               \
+	void configure_mmu_el##_el(unsigned long total_base,	               \
+				  unsigned long total_size,	               \
+				  unsigned long ro_start,	               \
+				  unsigned long ro_limit)	               \
+	{							               \
+	       mmap_add_region(ro_start, ro_start,		               \
+			       ro_limit - ro_start,		               \
+			       MT_MEMORY | MT_RO | MT_SECURE);	               \
+	       mmap_add_region(ro_limit, ro_limit,                             \
+			       TZRAM_SIZE - (ro_limit - ro_start),             \
+			       MT_MEMORY | MT_RW | MT_SECURE);	               \
+                                                                               \
+	       if (IS_6700())                                                  \
+		       mmap_add_region(XLF_CCN_BASE, XLF_CCN_BASE,             \
+				       XLF_CCN_SIZE,			       \
+				       MT_DEVICE | MT_RW | MT_SECURE);         \
+                                                                               \
+	       mmap_add_region(DEVICE0_BASE, DEVICE0_BASE, DEVICE0_SIZE,       \
+			       MT_DEVICE | MT_RW | MT_SECURE);                 \
+		                                                               \
+	       mmap_add_region(DEVICE1_BASE, DEVICE1_BASE, DEVICE1_SIZE,       \
+			       MT_DEVICE | MT_RW | MT_SECURE);                 \
+                                                                               \
+	       mmap_add_region(DRAM_BASE, DRAM_BASE, DRAM_SIZE,                \
+			       MT_MEMORY | MT_RW | MT_SECURE | MT_CACHED);     \
+		                                                               \
+	       init_xlat_tables();				               \
+								               \
+	       enable_mmu_el##_el(DISABLE_DCACHE);		               \
 	}
 
 /* Define EL1 and EL3 variants of the function initialising the MMU */
 DEFINE_CONFIGURE_MMU_EL(1)
 DEFINE_CONFIGURE_MMU_EL(3)
-
 
 unsigned long plat_get_ns_image_entrypoint(void)
 {

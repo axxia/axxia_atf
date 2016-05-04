@@ -48,8 +48,11 @@
 #define     SYSCON_HOLD_L2                                  (0x00002018)
 #define     SYSCON_HOLD_DBG                                 (0x0000201c)
 
-#define     SYSCON_RESET_AXIS                               (0x000020a0)
-#define     SYSCON_RESET_AXIS_ACCESS_SIZE                   (0x00000004)
+#define     XLF_SYSCON_RESET_AXIS                           (0x000020a0)
+#define     XLF_SYSCON_RESET_AXIS_ACCESS_SIZE               (0x00000004)
+
+#define     X9_SYSCON_RESET_AXIS                            (0x00002040)
+#define     X9_SYSCON_RESET_AXIS_ACCESS_SIZE                (0x00000008)
 
 #define     SYSCON_PWR_CLKEN                                (0x00002400)
 #define     SYSCON_PWR_CSYSREQ_TS                           (0x00002420)

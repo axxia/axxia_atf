@@ -1097,8 +1097,12 @@ static int axxia_pwrc_L2_logical_powerup(unsigned int cluster, unsigned int cpu)
 		cluster_mask = 0xf << (cluster * 4);
 
 	/* put the cluster into a cpu hold */
-	axxia_pwrc_or_bits_syscon_register(SYSCON_RESET_AXIS,
-			cluster_to_poreset[cluster]);
+	if (IS_5600())
+		axxia_pwrc_or_bits_syscon_register(X9_SYSCON_RESET_AXIS,
+						   cluster_to_poreset[cluster]);
+	else
+		axxia_pwrc_or_bits_syscon_register(XLF_SYSCON_RESET_AXIS,
+						   cluster_to_poreset[cluster]);
 
 	/*
 	 * The key value has to be written before the CPU RST can be written.
@@ -1123,8 +1127,12 @@ static int axxia_pwrc_L2_logical_powerup(unsigned int cluster, unsigned int cpu)
 	//udelay(16);
 
 	/* take the cluster out of a cpu hold */
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_RESET_AXIS,
-			cluster_to_poreset[cluster]);
+	if (IS_5600())
+		axxia_pwrc_clear_bits_syscon_register(X9_SYSCON_RESET_AXIS,
+						      cluster_to_poreset[cluster]);
+	else
+		axxia_pwrc_clear_bits_syscon_register(XLF_SYSCON_RESET_AXIS,
+						      cluster_to_poreset[cluster]);
 
 	//udelay(64);
 

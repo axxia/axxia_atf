@@ -75,11 +75,10 @@ void gic_cpuif_setup(void)
 	unsigned int val, scr_val;
 	uintptr_t gicr_base;
 
-#if defined(AXM5600)
-	gicr_base = GICR_BASE_X9;
-#else
-	gicr_base = GICR_BASE_XLF;
-#endif
+	if (IS_5600())
+		gicr_base = GICR_BASE_X9;
+	else
+		gicr_base = GICR_BASE_XLF;
 
 	gicr_base = gicv3_get_rdist(gicr_base, read_mpidr());
 
@@ -188,11 +187,10 @@ void axxia_gic_setup(void)
 {
 	uintptr_t gicd_base_;
 
-#if defined(AXM5600)
-	gicd_base_ = GICD_BASE_X9;
-#else
-	gicd_base_ = GICD_BASE_XLF;
-#endif
+	if (IS_5600())
+		gicd_base_ = GICD_BASE_X9;
+	else
+		gicd_base_ = GICD_BASE_XLF;
 
 	gic_distif_setup(gicd_base_);
 	gic_cpuif_setup();
@@ -303,11 +301,10 @@ uint32_t plat_ic_get_interrupt_type(uint32_t id)
 	uint32_t group;
 	uintptr_t gicd_base_;
 
-#if defined(AXM5600)
-	gicd_base_ = GICD_BASE_X9;
-#else
-	gicd_base_ = GICD_BASE_XLF;
-#endif
+	if (IS_5600())
+		gicd_base_ = GICD_BASE_X9;
+	else
+		gicd_base_ = GICD_BASE_XLF;
 
 	group = gicd_get_igroupr(gicd_base_, id);
 
