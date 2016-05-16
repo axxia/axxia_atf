@@ -693,32 +693,34 @@ bl31_plat_runtime_setup(void)
 	if (super != 0)
 		super = 1;
 
-	INFO("Setting up DSP Coherency\n");
+	if (IS_6700() && IS_EMU()) {
+		INFO("Setting up DSP Coherency\n");
 
-	/* Reset/Enable the DSP Cluster L2s */
-	mmio_write_32((CDC0 + 0x2030), 0);
-	udelay(100);
-	mmio_write_32((CDC0 + 0x2030), 1);
-
-	if (0 != super) {
-		mmio_write_32((CDC1 + 0x2030), 0);
+		/* Reset/Enable the DSP Cluster L2s */
+		mmio_write_32((CDC0 + 0x2030), 0);
 		udelay(100);
-		mmio_write_32((CDC1 + 0x2030), 1);
-		mmio_write_32((CDC2 + 0x2030), 0);
-		udelay(100);
-		mmio_write_32((CDC2 + 0x2030), 1);
-	}
+		mmio_write_32((CDC0 + 0x2030), 1);
 
-	/* Add to the Coherency Domain */
-	if (0 != set_cluster_coherency(8, 1))
-		INFO("Adding DSP cluster 0 to the coherency domain failed!\n");
+		if (0 != super) {
+			mmio_write_32((CDC1 + 0x2030), 0);
+			udelay(100);
+			mmio_write_32((CDC1 + 0x2030), 1);
+			mmio_write_32((CDC2 + 0x2030), 0);
+			udelay(100);
+			mmio_write_32((CDC2 + 0x2030), 1);
+		}
 
-	if (0 != super) {
-		if (0 != set_cluster_coherency(9, 1))
-			INFO("Adding DSP cluster 1 to the coherency domain failed!\n");
+		/* Add to the Coherency Domain */
+		if (0 != set_cluster_coherency(8, 1))
+			INFO("Adding DSP cluster 0 to the coherency domain failed!\n");
 
-		if (0 != set_cluster_coherency(10, 1))
-			INFO("Adding DSP cluster 2 to the coherency domain failed!\n");
+		if (0 != super) {
+			if (0 != set_cluster_coherency(9, 1))
+				INFO("Adding DSP cluster 1 to the coherency domain failed!\n");
+
+			if (0 != set_cluster_coherency(10, 1))
+				INFO("Adding DSP cluster 2 to the coherency domain failed!\n");
+		}
 	}
 
 	if (IS_SYSCACHE_ONLY())
