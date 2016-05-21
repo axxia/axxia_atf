@@ -533,7 +533,7 @@ initialize_cluster_info(void)
 	if (IS_5600()) {
 		number_of_clusters = 4;
 
-		if (IS_SIM()) {
+		if (IS_SIM() || IS_HW()) {
 			bit_by_cluster[0]  = 9;
 			bit_by_cluster[1]  = 19;
 			bit_by_cluster[2]  = 1;
