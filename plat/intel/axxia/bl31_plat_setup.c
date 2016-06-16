@@ -189,15 +189,20 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 	static char *option[] = { "none", "run in cache" };
 #endif
 
-	/* Initialize the console to provide early debug support */
-	console_init(PL011_UART0_BASE, PL011_UART_CLK, PL011_BAUDRATE);
-
 	memcpy(&axxia_configuration, plat_params_from_bl2,
 	       sizeof(axxia_configuration_t));
-	INFO("Options: %s, %s, %s\n",
+
+	/* Initialize the console to provide early debug support */
+	console_init(PL011_UART0_BASE,
+		     axxia_configuration.per_clock_hz,
+		     axxia_configuration.baud_rate);
+
+	INFO("Options: %s, %s, %s, %u MHz, %u\n",
 	     target[axxia_configuration.target],
 	     platform[axxia_configuration.platform],
-	     option[axxia_configuration.option]);
+	     option[axxia_configuration.option],
+	     axxia_configuration.per_clock_hz / (1024 * 1024),
+	     axxia_configuration.baud_rate);
 
 	/*
 	 * Initialise the CCN-504 driver for BL31 so that it is accessible
