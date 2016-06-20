@@ -505,16 +505,16 @@ flush_l3(void)
 {
 	int rc;
 
-	rc = set_l3_state(0x1);
+	rc = set_l3_state(0);
 
 	if (0 != rc) {
-		printf("Error Setting L3 to SFONLY!\n");
+		printf("Error Setting L3 to OFF!\n");
 
 		return;
 	}
 
 #ifndef LEAVE_L3_IN_SFONLY
-	rc = set_l3_state(0x3);
+	rc = set_l3_state(3);
 
 	if (0 != rc) {
 		printf("Error Setting L3 to FULL!\n");
