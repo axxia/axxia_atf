@@ -77,7 +77,7 @@ static void __dead2 axxia_system_reset(void)
 		initiate_retention_reset();
 
 	ctrl = mmio_read_32(SYSCON_RESET_CTRL);
-	mmio_write_32(SYSCON_RESET_CTRL, ctrl | RSTCTL_RST_SYS);
+	mmio_write_32(SYSCON_RESET_CTRL, ctrl | RSTCTL_RST_CHIP);
 	/* ...in case it fails */
 	psci_power_down_wfi();
 }
