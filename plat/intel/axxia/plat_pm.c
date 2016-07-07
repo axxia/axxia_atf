@@ -47,6 +47,7 @@ extern int axxia_pwrc_validate_power_state(unsigned int power_state, psci_power_
 
 #define SYSCON_PSCRATCH     (SYSCON_BASE + 0x00dc)
 #define SYSCON_RESET_KEY	(SYSCON_BASE + 0x2000)
+#define SYSCON_RESET_LOR	(SYSCON_BASE + 0x2004)
 #define SYSCON_RESET_CTRL	(SYSCON_BASE + 0x2008)
 #define   RSTCTL_RST_CHIP       (1<<1)
 #define   RSTCTL_RST_SYS        (1<<0)
@@ -62,13 +63,14 @@ static void __dead2 axxia_system_off(void)
 
 extern void __dead2 initiate_retention_reset(void);
 
+extern void udelay(unsigned long us);
+
 
 static void __dead2 axxia_system_reset(void)
 {
 	unsigned int ctrl;
 	unsigned int pscratch;
 
-	INFO("axxia_system_reset called\n");
 	mmio_write_32(SYSCON_RESET_KEY, 0xab);
 
 	/* check for DDR retention reset */
@@ -82,22 +84,46 @@ static void __dead2 axxia_system_reset(void)
 	psci_power_down_wfi();
 }
 
+#define TIMER_BASE (DEVICE1_BASE + 0x00220000)
 
+/*
+ * axxia_system_reset_wo_sm
+ *
+ * This function will perform a chip reset with
+ * the RESET_WO_SM bit set. In the h/w setting 
+ * this bit will enable 'shields up' and prevent
+ * any subsequent access to AXIS/syscon/LSM etc.
+ *
+ * So, prior to writing this bit we set up a watchdog
+ * timer to do a chipReset, then we write RESET_WO_SM
+ * (which basically hangs the ARM) then wait for the
+ * watchdog to reset the chip.
+ */
+ 
 void __dead2 axxia_system_reset_wo_sm(void)
 {
 	unsigned int reg;
 
-	mmio_write_32(SYSCON_RESET_WO_SM, 1);
-	do {
-		reg = mmio_read_32(SYSCON_RESET_WO_SM);
-	} while (reg == 0);
+	mmio_write_32(SYSCON_RESET_KEY, 0xab);
 
+	/* set boot mode to zero (internal boot) */
+	reg = mmio_read_32(SYSCON_RESET_LOR);
+	reg &= ~( 1 << 7);
+	mmio_write_32(SYSCON_RESET_LOR, reg );
+
+	/* set up watchdog timer */
 	reg = mmio_read_32(SYSCON_RESET_CTRL);
-	mmio_write_32(SYSCON_RESET_CTRL, reg | RSTCTL_RST_CHIP);
-	/* ...in case it fails */
-	psci_power_down_wfi();
+	mmio_write_32(SYSCON_RESET_CTRL, reg | 0x100);
 
-	WARN("Called axxia_system_reset_wo_sm\n");
+	mmio_write_32((TIMER_BASE + 0xa8), 0);
+	mmio_write_32((TIMER_BASE + 0xa0), 0x30d40);
+	mmio_write_32((TIMER_BASE + 0xa4), 0x30d40);
+	mmio_write_32((TIMER_BASE + 0xa8), 0xe2);
+
+	/* write RESET_WO_SM */
+	mmio_write_32(SYSCON_RESET_WO_SM, 1);
+
+
 	while (1)
 		;
 }

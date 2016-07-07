@@ -137,8 +137,6 @@ quiesce_vp_engine(int engine_type)
 
 		if ((ort == 0) && (owt == 0)) {
 			/* this engine has been quiesced, move on to the next */
-			tf_printf("quiesced region 0x%02x.0x%02x\n",
-					node, target);
 			region++;
 		} else {
 			if (loop++ > 10000) {
