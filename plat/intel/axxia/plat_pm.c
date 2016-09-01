@@ -52,6 +52,7 @@ extern int axxia_pwrc_validate_power_state(unsigned int power_state, psci_power_
 #define   RSTCTL_RST_CHIP       (1<<1)
 #define   RSTCTL_RST_SYS        (1<<0)
 #define SYSCON_RESET_HOLD	(SYSCON_BASE + 0x2010)
+#define SYSCON_ALLOW_TIMER	(SYSCON_BASE + 0x2048)
 #define SYSCON_RESET_WO_SM  (SYSCON_BASE + 0x204c)
 
 
@@ -94,11 +95,16 @@ static void __dead2 axxia_system_reset(void)
  * this bit will enable 'shields up' and prevent
  * any subsequent access to AXIS/syscon/LSM etc.
  *
- * So, prior to writing this bit we set up a watchdog
+ * So, prior to writing this bit we set up a physical
  * timer to do a chipReset, then we write RESET_WO_SM
  * (which basically hangs the ARM) then wait for the
- * watchdog to reset the chip.
+ * timer to reset the chip.
+ *
+ * We must use a physical timer instead of the watchdog
+ * because the bootrom has special handling for watchdog
+ * resets that we don't want for the retention reset.
  */
+
  
 void __dead2 axxia_system_reset_wo_sm(void)
 {
@@ -106,26 +112,35 @@ void __dead2 axxia_system_reset_wo_sm(void)
 
 	mmio_write_32(SYSCON_RESET_KEY, 0xab);
 
+
 	/* set boot mode to zero (internal boot) */
 	reg = mmio_read_32(SYSCON_RESET_LOR);
 	reg &= ~( 1 << 7);
 	mmio_write_32(SYSCON_RESET_LOR, reg );
 
-	/* set up watchdog timer */
-	reg = mmio_read_32(SYSCON_RESET_CTRL);
-	mmio_write_32(SYSCON_RESET_CTRL, reg | 0x100);
+    /* allow physical timer to generate a chip reset */
+	mmio_write_32(SYSCON_ALLOW_TIMER, 0xffff);
 
-	mmio_write_32((TIMER_BASE + 0xa8), 0);
-	mmio_write_32((TIMER_BASE + 0xa0), 0x30d40);
-	mmio_write_32((TIMER_BASE + 0xa4), 0x30d40);
-	mmio_write_32((TIMER_BASE + 0xa8), 0xe2);
+    reg = mmio_read_32(SYSCON_RESET_CTRL);
+    reg |= 0x00000020;  /* nstimrstreq_chip_enable */
+    mmio_write_32(SYSCON_RESET_CTRL, reg);
+
+    /* disable timer and mask interrupt */
+    reg = 2;
+    __asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
+
+    /* initialize counter value */
+    reg = 0x00030d40;
+    __asm__ __volatile__ ("msr CNTHP_TVAL_EL2, %0"  : : "r" (reg));
+
+    /* restart timer */
+    reg = 1;
+    __asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
 
 	/* write RESET_WO_SM */
 	mmio_write_32(SYSCON_RESET_WO_SM, 1);
 
-
-	while (1)
-		;
+	while (1) ;
 }
 
 
