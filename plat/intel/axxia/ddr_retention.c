@@ -96,8 +96,6 @@ quiesce_vp_engine(int engine_type)
 	unsigned short node, target;
 	int loop;
 
-	tf_printf("quiescing VP engines...\n");
-
 	switch (engine_type) {
 	case AXXIA_ENGINE_CNAL:
 		engine_regions = ncp_cnal_regions_acp55xx;
