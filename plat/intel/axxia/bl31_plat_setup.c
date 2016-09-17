@@ -567,18 +567,34 @@ initialize_cluster_info(void)
 		}
 	} else {
 		number_of_clusters = 12;
-		bit_by_cluster[0]  = 17;
-		bit_by_cluster[1]  = -1;
-		bit_by_cluster[2]  = 11;
-		bit_by_cluster[3]  = -1;
-		bit_by_cluster[4]  = 29;
-		bit_by_cluster[5]  = -1;
-		bit_by_cluster[6]  = -1;
-		bit_by_cluster[7]  = -1;
-		bit_by_cluster[8]  = 14;
-		bit_by_cluster[9]  = 15;
-		bit_by_cluster[10] = 32;
-		bit_by_cluster[11] = -1;
+
+		if (IS_SIM() || IS_HW()) {
+			bit_by_cluster[0]  = 11;
+			bit_by_cluster[1]  = 12;
+			bit_by_cluster[2]  = 17;
+			bit_by_cluster[3]  = 18;
+			bit_by_cluster[4]  = 29;
+			bit_by_cluster[5]  = 30;
+			bit_by_cluster[6]  = 35;
+			bit_by_cluster[7]  =  0;
+			bit_by_cluster[8]  = 14;
+			bit_by_cluster[9]  = 15;
+			bit_by_cluster[10] = 32;
+			bit_by_cluster[11] = 33;
+		} else {
+			bit_by_cluster[0]  = 17;
+			bit_by_cluster[1]  = -1;
+			bit_by_cluster[2]  = 11;
+			bit_by_cluster[3]  = -1;
+			bit_by_cluster[4]  = 29;
+			bit_by_cluster[5]  = -1;
+			bit_by_cluster[6]  = -1;
+			bit_by_cluster[7]  = -1;
+			bit_by_cluster[8]  = 14;
+			bit_by_cluster[9]  = 15;
+			bit_by_cluster[10] = 32;
+			bit_by_cluster[11] = -1;
+		}
 	}
 
 	return 0;
