@@ -152,7 +152,9 @@ static unsigned long mmap_desc(unsigned attr, unsigned long addr_pa,
 		else
 			desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
 
-		if (attr & MT_RW)
+		if ((attr & MT_CACHED) && (attr & MT_RW))
+			desc &= ~(UPPER_ATTRS(XN));
+		else if (attr & MT_RW)
 			desc |= UPPER_ATTRS(XN);
 	} else {
 		desc |= LOWER_ATTRS(ATTR_DEVICE_INDEX | OSH);
@@ -339,7 +341,8 @@ void init_xlat_tables(void)
 		isb();							\
 									\
 		sctlr = read_sctlr_el##_el();				\
-		sctlr |= SCTLR_WXN_BIT | SCTLR_M_BIT;			\
+		sctlr |= SCTLR_M_BIT;					\
+		sctlr &= ~SCTLR_WXN_BIT;				\
 									\
 		if (flags & DISABLE_DCACHE)				\
 			sctlr &= ~SCTLR_C_BIT;				\
