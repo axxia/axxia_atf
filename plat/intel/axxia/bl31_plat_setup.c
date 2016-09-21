@@ -697,100 +697,6 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 
 /*
   ------------------------------------------------------------------------------
-  xlf_emu_dsps
-*/
-
-static void
-xlf_emu_dsps(void)
-{
-	unsigned int super = 0;
-
-	/*
-	  Add the DSP clusterss to the coherency domain if this is
-	  Lionfish.  Note that the number of DSP clusters changes on
-	  super frios.
-	*/
-
-	super = mmio_read_32(NCAP + 0x50018);
-
-	if (super != 0)
-		super = 1;
-
-	INFO("Setting up DSP Coherency\n");
-
-	/* Reset/Enable the DSP Cluster L2s */
-	mmio_write_32((CDC0 + 0x2030), 0);
-	udelay(100);
-	mmio_write_32((CDC0 + 0x2030), 1);
-
-	if (0 != super) {
-		mmio_write_32((CDC1 + 0x2030), 0);
-		udelay(100);
-		mmio_write_32((CDC1 + 0x2030), 1);
-		mmio_write_32((CDC2 + 0x2030), 0);
-		udelay(100);
-		mmio_write_32((CDC2 + 0x2030), 1);
-	}
-
-	/* Add to the Coherency Domain */
-	if (0 != set_cluster_coherency(8, 1))
-		INFO("Adding DSP cluster 0 to the coherency domain failed!\n");
-
-	if (0 != super) {
-		if (0 != set_cluster_coherency(9, 1))
-			INFO("Adding DSP cluster 1 to the coherency domain failed!\n");
-		if (0 != set_cluster_coherency(10, 1))
-			INFO("Adding DSP cluster 2 to the coherency domain failed!\n");
-	}
-
-	return;
-}
-
-/*
-  ------------------------------------------------------------------------------
-  xlf_dsps
-*/
-
-static void
-xlf_dsps(void)
-{
-	/* Reset/Enable the DSP Cluster L2s */
-
-	mmio_write_32((CDC0 + 0x2030), 0);
-	udelay(100);
-	mmio_write_32((CDC0 + 0x2030), 1);
-
-	mmio_write_32((CDC1 + 0x2030), 0);
-	udelay(100);
-	mmio_write_32((CDC1 + 0x2030), 1);
-
-	mmio_write_32((CDC2 + 0x2030), 0);
-	udelay(100);
-	mmio_write_32((CDC2 + 0x2030), 1);
-
-	mmio_write_32((CDC3 + 0x2030), 0);
-	udelay(100);
-	mmio_write_32((CDC3 + 0x2030), 1);
-
-	/* Add to the Coherency Domain */
-
-	if (0 != set_cluster_coherency(8, 1))
-		INFO("Adding DSP cluster 0 to the coherency domain failed!\n");
-
-	if (0 != set_cluster_coherency(9, 1))
-		INFO("Adding DSP cluster 1 to the coherency domain failed!\n");
-
-	if (0 != set_cluster_coherency(10, 1))
-		INFO("Adding DSP cluster 2 to the coherency domain failed!\n");
-
-	if (0 != set_cluster_coherency(11, 1))
-		INFO("Adding DSP cluster 3 to the coherency domain failed!\n");
-
-	return;
-}
-
-/*
-  ------------------------------------------------------------------------------
   bl31_plat_runtime_setup
 */
 
@@ -800,10 +706,9 @@ bl31_plat_runtime_setup(void)
 	if (0 != set_cluster_coherency(0, 1))
 		ERROR("Adding cluster 0 to the coherency domain failed!\n");
 
-	if (IS_6700() && IS_EMU())
-		xlf_emu_dsps();
-	else if (IS_6700())
-		xlf_dsps();
+	/* Start with all DSP clusters off. */
+	if (IS_6700())
+		set_dsp_state(0);
 
 	if (IS_SYSCACHE_ONLY())
 	        syscache_only_mode();

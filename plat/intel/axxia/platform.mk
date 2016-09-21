@@ -34,32 +34,34 @@ ENABLE_PLAT_COMPAT := 0
 PLAT_INCLUDES := -Iplat/intel/axxia/include
 
 PLAT_BL_COMMON_SOURCES :=                       \
-	drivers/arm/pl011/pl011_console.S	\
-	drivers/arm/ccn504/ccn504.c		\
-	drivers/io/io_fip.c			\
-	drivers/io/io_memmap.c			\
-	drivers/io/io_storage.c			\
-	lib/aarch64/xlat_tables.c		\
-	plat/common/aarch64/plat_common.c	\
-	plat/intel/axxia/plat_io_storage.c
+        drivers/arm/pl011/pl011_console.S       \
+        drivers/arm/ccn504/ccn504.c             \
+        drivers/io/io_fip.c                     \
+        drivers/io/io_memmap.c                  \
+        drivers/io/io_storage.c                 \
+        lib/aarch64/xlat_tables.c               \
+        plat/common/aarch64/plat_common.c       \
+        plat/intel/axxia/plat_io_storage.c
 
-BL31_SOURCES	       +=                                  \
-	plat/common/aarch64/plat_psci_common.c	           \
-	plat/intel/axxia/drivers/pwrc/axxia_psci_handler.c \
-	plat/intel/axxia/drivers/pwrc/axxia_pwrc.c	   \
-	drivers/arm/gic/gic_v2.c		           \
-	drivers/arm/gic/gic_v3.c		           \
-	plat/intel/axxia/plat_gic.c			   \
-	lib/cpus/aarch64/cortex_a57.S		           \
-	lib/cpus/aarch64/cortex_a53.S		           \
-	plat/common/aarch64/platform_mp_stack.S	           \
-	plat/intel/axxia/bl31_plat_setup.c		   \
-	plat/intel/axxia/aarch64/plat_helpers.S	           \
-	plat/intel/axxia/aarch64/axxia_common.c	           \
-	plat/intel/axxia/plat_pm.c			   \
-	plat/intel/axxia/plat_topology.c                   \
-	plat/intel/axxia/ncr.c			           \
-	plat/intel/axxia/ddr_retention.c
+BL31_SOURCES +=                                            \
+        plat/common/aarch64/plat_psci_common.c             \
+        plat/intel/axxia/drivers/pwrc/axxia_psci_handler.c \
+        plat/intel/axxia/drivers/pwrc/axxia_pwrc.c         \
+        drivers/arm/gic/gic_v2.c                           \
+        drivers/arm/gic/gic_v3.c                           \
+        plat/intel/axxia/plat_gic.c                        \
+        lib/cpus/aarch64/cortex_a57.S                      \
+        lib/cpus/aarch64/cortex_a53.S                      \
+        plat/common/aarch64/platform_mp_stack.S            \
+        plat/intel/axxia/bl31_plat_setup.c                 \
+        plat/intel/axxia/aarch64/plat_helpers.S            \
+        plat/intel/axxia/aarch64/axxia_common.c            \
+        plat/intel/axxia/plat_pm.c                         \
+        plat/intel/axxia/plat_topology.c                   \
+        plat/intel/axxia/ncr.c                             \
+        plat/intel/axxia/dsp.c                             \
+        plat/intel/axxia/oem_svc.c                         \
+        plat/intel/axxia/ddr_retention.c
 
 ################################################################################
 # Axxia only uses BL31
@@ -72,5 +74,5 @@ NEED_BL31 := yes
 NEED_BL33 := no
 
 # Enable workarounds for selected Cortex-A57 erratas.
-#ERRATA_A57_806969	:=	0
-#ERRATA_A57_813420	:=	0
+#ERRATA_A57_806969      :=      0
+#ERRATA_A57_813420      :=      0

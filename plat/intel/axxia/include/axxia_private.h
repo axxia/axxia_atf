@@ -183,4 +183,8 @@ ncr_modify32( __uint32_t region, __uint32_t offset,
 
 void
 initiate_retention_reset(void);
+
+void set_dsp_state(unsigned long state);
+unsigned long get_dsp_state(void);
+
 #endif /* __AXXIA_PRIVATE_H__ */
