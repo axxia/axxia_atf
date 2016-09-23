@@ -126,7 +126,7 @@ extern axxia_configuration_t axxia_configuration;
 #define CDC0                    0x8004400000 /* 0x169.0 */
 #define CDC1                    0x8004420000 /* 0x169.1 */
 #define CDC2                    0x8004440000 /* 0x169.2 */
-#define CDC3                    0x8004480000 /* 0x169.3 */
+#define CDC3                    0x8004460000 /* 0x169.3 */
 
 /* UART0-3 */
 #define PL011_UART0_BASE	0x8080000000
