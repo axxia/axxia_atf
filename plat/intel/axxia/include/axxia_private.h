@@ -85,6 +85,9 @@ void plat_report_exception(unsigned long type);
 unsigned long plat_get_ns_image_entrypoint(void);
 unsigned long platform_get_stack(unsigned long mpidr);
 uint64_t plat_get_syscnt_freq(void);
+void plat_flush_dcache_l1(void);
+void plat_flush_dcache_l2(void);
+
 
 /* Declarations for plat_gic.c */
 uint32_t ic_get_pending_interrupt_id(void);
@@ -156,12 +159,12 @@ extern int need_nca_swap;
 
 #define NCP_NODE_ID(regionId)    (((regionId) >> 16) & 0xffff)
 #define NCP_TARGET_ID(regionId)  ((regionId) & 0xffff)
-#define NCP_REGION_ID(node, tgt) (((node & 0xffff) << 16 ) | (tgt & 0xffff))
+#define NCP_REGION_ID(node, tgt) (((node & 0xffff) << 16) | (tgt & 0xffff))
 
 int
 ncr_read(__uint32_t region,
-         __uint32_t address,
-         int number, __uint32_t *buffer);
+		__uint32_t address,
+		int number, __uint32_t *buffer);
 int
 ncr_read32(__uint32_t region, __uint32_t offset, __uint32_t *value);
 
@@ -178,8 +181,8 @@ ncr_modify(__uint32_t region, __uint32_t address, int count,
 	   __uint32_t *masks, __uint32_t *values);
 
 int
-ncr_modify32( __uint32_t region, __uint32_t offset,
-	      __uint32_t mask, __uint32_t value );
+ncr_modify32(__uint32_t region, __uint32_t offset,
+		__uint32_t mask, __uint32_t value);
 
 void
 initiate_retention_reset(void);

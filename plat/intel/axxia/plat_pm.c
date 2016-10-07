@@ -91,7 +91,7 @@ static void __dead2 axxia_system_reset(void)
  * axxia_system_reset_wo_sm
  *
  * This function will perform a chip reset with
- * the RESET_WO_SM bit set. In the h/w setting 
+ * the RESET_WO_SM bit set. In the h/w setting
  * this bit will enable 'shields up' and prevent
  * any subsequent access to AXIS/syscon/LSM etc.
  *
@@ -105,7 +105,6 @@ static void __dead2 axxia_system_reset(void)
  * resets that we don't want for the retention reset.
  */
 
- 
 void __dead2 axxia_system_reset_wo_sm(void)
 {
 	unsigned int reg;
@@ -115,8 +114,8 @@ void __dead2 axxia_system_reset_wo_sm(void)
 
 	/* set boot mode to zero (internal boot) */
 	reg = mmio_read_32(SYSCON_RESET_LOR);
-	reg &= ~( 1 << 7);
-	mmio_write_32(SYSCON_RESET_LOR, reg );
+	reg &= ~(1 << 7);
+	mmio_write_32(SYSCON_RESET_LOR, reg);
 
     /* allow physical timer to generate a chip reset */
 	mmio_write_32(SYSCON_ALLOW_TIMER, 0xffff);
@@ -169,24 +168,14 @@ void axxia_cpu_standby(plat_local_state_t cpu_state)
 int axxia_pwr_domain_on(u_register_t mpidr)
 {
 	unsigned int cpu;
-	unsigned int hold;
+	int retVal = PSCI_E_SUCCESS;
 
 	cpu = (((mpidr >> MPIDR_AFF1_SHIFT) & MPIDR_AFFLVL_MASK) * 4) +
 		((mpidr >> MPIDR_AFF0_SHIFT) & MPIDR_AFFLVL_MASK);
-	
-	mmio_write_32(0x8031000000,
-		      (0x14000000 |
-		       (axxia_sec_entry_point - 0x8031000000) / 4));
-	dsb();
-	hold = mmio_read_32(SYSCON_RESET_HOLD);
 
-	hold &= ~(1 << cpu);
-	mmio_write_32(SYSCON_RESET_KEY, 0xab);
-	mmio_write_32(SYSCON_RESET_HOLD, hold | (1 << cpu));
-	mmio_write_32(SYSCON_RESET_HOLD, hold);
-	mmio_write_32(SYSCON_RESET_KEY, 0x00);
+	retVal = axxia_pwrc_cpu_powerup(cpu);
 
-	return PSCI_E_SUCCESS;
+	return retVal;
 }
 
 /*******************************************************************************

@@ -47,6 +47,9 @@
 #define     SYSCON_PWRUP_CPU_RST                            (0x00002014)
 #define     SYSCON_HOLD_L2                                  (0x00002018)
 #define     SYSCON_HOLD_DBG                                 (0x0000201c)
+#define     SYSCON_HOLD_DSSB                                (0x00002074)
+#define     SYSCON_HOLD_INFRA                               (0x0000206c)
+#define     SYSCON_HOLD_STREAM                              (0x00002070)
 
 #define     XLF_SYSCON_RESET_AXIS                           (0x000020a0)
 #define     XLF_SYSCON_RESET_AXIS_ACCESS_SIZE               (0x00000004)
@@ -55,10 +58,25 @@
 #define     X9_SYSCON_RESET_AXIS_ACCESS_SIZE                (0x00000008)
 
 #define     SYSCON_PWR_CLKEN                                (0x00002400)
+#define     SYSCON_PWR_AINACTS                              (0x00002408)
 #define     SYSCON_PWR_CSYSREQ_TS                           (0x00002420)
+#define     SYSCON_PWR_DBGPWRDUP                            (0x00002424)
+#define     SYSCON_PWR_ISOLATECPU                           (0x00002428)
+#define     SYSCON_PWR_PSTATE                               (0x00002440)
+#define     SYSCON_PWR_PWRUPCPU                             (0x00002450)
 #define     SYSCON_PWR_CSYSREQ_CNT                          (0x0000241c)
 #define     SYSCON_PWR_CSYSREQ_ATB                          (0x00002418)
 #define     SYSCON_PWR_CSYSREQ_APB                          (0x00002410)
+#define     SYSCON_PWR_PREQ                                 (0x0000243c)
+
+#define     SYSCON_PWR_PWRDNREQ_ACP                         (0x00002444)
+#define     SYSCON_PWR_PWRDNREQ_ICCT                        (0x00002448)
+#define     SYSCON_PWR_PWRDNREQ_ICDT                        (0x0000244c)
+
+#define     SYSCON_PWR_L2FLUSHREQ                           (0x00002434)
+#define     SYSCON_PWR_L2FLUSHDONE                          (0x000024cc)
+#define     SYSCON_PWR_PWRUPL2PLUS                          (0x00002458)
+#define     SYSCON_PWR_ISOLATEL2PLUS                        (0x0000242c)
 
 #define     SYSCON_PWR_STANDBYWFIL2                         (0x00002504)
 #define     SYSCON_PWR_CSYSACK_TS                           (0x000024c8)
@@ -69,9 +87,19 @@
 #define     SYSCON_PWR_CACTIVE_ATB                          (0x00002488)
 #define     SYSCON_PWR_CSYSACK_APB                          (0x000024b8)
 #define     SYSCON_PWR_CACTIVE_APB                          (0x00002480)
+#define     SYSCON_PWR_PACCEPT                              (0x000024e0)
+#define     SYSCON_PWR_PWRDNACK_ACP                         (0x000024e8)
+#define     SYSCON_PWR_PWRDNACK_ICCT                        (0x000024ec)
+#define     SYSCON_PWR_PWRDNACK_ICDT                        (0x000024f0)
 
 #define     SYSCON_PWR_PWRUPCPURAM                          (0x00002488)
 #define     SYSCON_PWR_ISOLATECPU                           (0x00002428)
+
+#define     SYSCON_PWR_STANDBYWFI                           (0x00002500)
+#define     SYSCON_PWR_ENABLE_SELF_PWRDN                    (0x00002510)
+#define     SYSCON_PWR_DOWN_CPU                             (0x00002514)
+#define     SYSCON_PWR_DOWN_CLUSTER                         (0x00002518)
+#define     SYSCON_PWR_SINACT                               (0x0000245c)
 
 #define		RAM_BANK0_MASK			(0x0FFF0000)
 #define		RAM_BANK1_LS_MASK		(0xF0000000)
@@ -126,8 +154,15 @@ void axxia_pwrc_dump_dickens(void);
 void axxia_pwrc_init_cpu(unsigned int cpu);
 void axxia_pwrc_cpu_logical_powerup(void);
 void axxia_pwrc_cluster_logical_powerup(void);
-bool axxia_pwrc_cpu_active(unsigned int cpu);
 void axxia_pwrc_init_syscon(void);
+void axxia_pwrc_disable_data_cache_hyp_mode(void);
+void axxia_pwrc_disable_data_cache(void);
+void axxia_pwrc_disable_data_coherency(void);
+void axxia_pwrc_enable_data_cache_hyp_mode(void);
+void axxia_pwrc_enable_data_cache(void);
+void axxia_pwrc_enable_data_coherency(void);
+void axxia_pwrc_disable_l2_prefetch(void);
+
 extern bool axxia_pwrc_in_progress[];
 extern bool cluster_power_up[];
 extern unsigned int axxia_pwrc_cpu_powered_down;

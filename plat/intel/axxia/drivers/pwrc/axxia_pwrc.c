@@ -44,12 +44,10 @@
 
 #undef DEBUG_CPU_PM
 
-//#define PM_WAIT_TIME (10000)
-#define PM_WAIT_TIME	(1) // This for simulation only
+#define PM_WAIT_TIME (10000)
 #define IPI_IRQ_MASK (0xFFFF)
 
 #define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
-
 
 bool axxia_pwrc_in_progress[PLATFORM_CORE_COUNT];
 bool cluster_power_up[PLATFORM_CLUSTER_COUNT];
@@ -86,17 +84,23 @@ static void axxia_pwrc_clear_bits_syscon_register(unsigned int reg, unsigned int
 static unsigned int axxia_pwrc_test_for_bit_with_timeout(unsigned int reg, unsigned int bit);
 static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg,
 		unsigned int bit);
-static void axxia_pwrc_dickens_logical_shutdown(unsigned int cluster);
-static int axxia_pwrc_dickens_logical_powerup(unsigned int cluster);
 static int axxia_pwrc_cpu_physical_isolation_and_power_down(int cpu);
-static void axxia_pwrc_L2_isolation_and_power_down(int cluster);
 static int axxia_pwrc_cpu_physical_connection_and_power_up(int cpu);
 static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster);
-static int axxia_pwrc_L2_logical_powerup(unsigned int cluster, unsigned int cpu);
+static void axxia_pwrc_l3_logical_shutdown(unsigned int cluster);
+static void axxia_pwrc_l3_logical_powerup(unsigned int cluster);
+
+static void axxia_pwrc_disable_cache(void);
+
+#ifdef DEBUG_CPU_PM
+static void l2_debug(void);
+#endif
 
 static bool axxia_pwrc_first_cpu_of_cluster(unsigned int cpu)
 {
+#ifdef L2_POWER
 	unsigned int count = 0;
+
 	switch (cpu) {
 	case (0):
 	case (1):
@@ -154,12 +158,15 @@ static bool axxia_pwrc_first_cpu_of_cluster(unsigned int cpu)
 				__LINE__);
 		break;
 	}
+#endif
 	return FALSE;
 }
 
 bool axxia_pwrc_cpu_last_of_cluster(unsigned int cpu)
 {
+#ifdef L2_POWER
 	unsigned int count = 0;
+
 	switch (cpu) {
 	case (0):
 	case (1):
@@ -217,6 +224,7 @@ bool axxia_pwrc_cpu_last_of_cluster(unsigned int cpu)
 				__LINE__);
 		break;
 	}
+#endif
 	return FALSE;
 }
 
@@ -248,7 +256,7 @@ static unsigned int axxia_pwrc_test_for_bit_with_timeout(unsigned int reg, unsig
 {
 
 	unsigned int tmp = 0;
-	unsigned int cnt = 0;
+	long long cnt = 0;
 
 	while (cnt < PM_WAIT_TIME) {
 		tmp = mmio_read_32(SYSCON_BASE + reg);
@@ -258,15 +266,14 @@ static unsigned int axxia_pwrc_test_for_bit_with_timeout(unsigned int reg, unsig
 	}
 	if (cnt == PM_WAIT_TIME) {
 		ERROR("reg=0x%x tmp:=0x%x\n", reg, tmp);
-		ERROR("TIMEOUT override during simulation 'test for bit'\n");
-		return PSCI_E_SUCCESS;
+		return PSCI_E_INTERN_FAIL;
 	}
 	return PSCI_E_SUCCESS;
 }
 
 static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg, unsigned int bit)
 {
-	unsigned int cnt = 0;
+	long long cnt = 0;
 	unsigned int tmp = 0;
 
 	while (cnt < PM_WAIT_TIME) {
@@ -277,154 +284,22 @@ static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg,
 	}
 	if (cnt == PM_WAIT_TIME) {
 		ERROR("reg=0x%x tmp:=0x%x\n", reg, tmp);
-		ERROR("TIMEOUT override during simulation 'wait for bit'\n");
-		return PSCI_E_SUCCESS;
-		// TODO return PSCI_E_INTERN_FAIL;
+		return PSCI_E_INTERN_FAIL;
 	}
 
 	return PSCI_E_SUCCESS;
 }
-static void axxia_pwrc_dickens_logical_shutdown(unsigned int cluster)
+
+static void axxia_pwrc_l3_logical_shutdown(unsigned int cluster)
 {
-#if 0
-	int i;
-	int status;
-	unsigned int bit;
-	unsigned int bit_pos;
-	int retries;
-
-	bit = (0x01 << cluster_to_node[cluster]);
-	bit_pos = cluster_to_node[cluster];
-
-	for (i = 0; i < DKN_HNF_TOTAL_NODES; ++i) {
-		mmio_write_32((DICKENS_BASE_X9 + (0x10000 * (DKN_HNF_NODE_ID + i)) + DKN_HNF_SNOOP_DOMAIN_CTL_CLR), bit);
-
-		retries = PM_WAIT_TIME;
-
-		do {
-			status = mmio_read_32(DICKENS_BASE_X9 + (0x10000 * (DKN_HNF_NODE_ID + i)) + DKN_HNF_SNOOP_DOMAIN_CTL);
-			udelay(1);
-		} while ((0 < --retries) && CHECK_BIT(status, bit_pos));
-
-		if (0 == retries) {
-			ERROR("DICKENS: Failed to clear the SNOOP main control. LOOP:%d reg: 0x%x\n", i, status);
-			return;
-
-		}
-
-	}
-	/* Clear the domain cluster */
-	mmio_write_32((DICKENS_BASE_X9 + (0x10000 * DKN_DVM_DOMAIN_OFFSET) + DKN_MN_DVM_DOMAIN_CTL_CLR), bit);
-
-	/* Check for complete */
-	retries = PM_WAIT_TIME;
-
-	do {
-		status = mmio_read_32(DICKENS_BASE_X9 + (0x10000 * DKN_DVM_DOMAIN_OFFSET) + DKN_MN_DVM_DOMAIN_CTL);
-		udelay(1);
-	} while ((0 < --retries) && CHECK_BIT(status, bit_pos));
-
-	if (0 == retries) {
-		ERROR("DICKENS: failed to set DOMAIN OFFSET Reg=0x%x\n", status);
-		return;
-	}
-#endif
+	if (0 != set_cluster_coherency(cluster, 0))
+		tf_printf("Removing cluster %u to the coherency domain failed!\n", cluster);
 }
 
-static int axxia_pwrc_dickens_logical_powerup(unsigned int cluster)
+static void axxia_pwrc_l3_logical_powerup(unsigned int cluster)
 {
-	int rval = PSCI_E_SUCCESS;
-
 	if (0 != set_cluster_coherency(cluster, 1))
-		tf_printf("Adding cluster %u to the coherency domain failed!\n",
-			cluster);
-
-#if 0
-	int i;
-	unsigned int status;
-	unsigned int bit;
-	unsigned int bit_pos;
-	int retries;
-	int rval = PSCI_E_SUCCESS;
-
-	bit = (0x01 << cluster_to_node[cluster]);
-	bit_pos = cluster_to_node[cluster];
-
-	for (i = 0; i < DKN_HNF_TOTAL_NODES; ++i) {
-		mmio_write_32((DICKENS_BASE_X9 + (0x10000 * (DKN_HNF_NODE_ID + i)) + DKN_HNF_SNOOP_DOMAIN_CTL_SET), bit);
-
-		retries = PM_WAIT_TIME;
-
-		do {
-			status = mmio_read_32(DICKENS_BASE_X9 + (0x10000 * (DKN_HNF_NODE_ID + i)) + DKN_HNF_SNOOP_DOMAIN_CTL);
-			udelay(1);
-		} while ((0 < --retries) && !CHECK_BIT(status, bit_pos));
-
-		if (0 == retries) {
-			ERROR("DICKENS: Failed on the SNOOP DONAIN\n");
-			return -PM_ERR_DICKENS_SNOOP_DOMAIN;
-		}
-
-	}
-
-	/* Clear the domain cluster */
-	mmio_write_32((DICKENS_BASE_X9 + (0x10000 * DKN_DVM_DOMAIN_OFFSET) + DKN_MN_DVM_DOMAIN_CTL_SET), bit);
-
-	/* Check for complete */
-	retries = PM_WAIT_TIME;
-
-	do {
-		status = mmio_read_32(DICKENS_BASE_X9 + (0x10000 * DKN_DVM_DOMAIN_OFFSET) + DKN_MN_DVM_DOMAIN_CTL);
-		udelay(1);
-	} while ((0 < --retries) && !CHECK_BIT(status, bit_pos));
-
-	if (0 == retries) {
-		ERROR("DICKENS: Failed on the SNOOP DONAIN CTL SET\n");
-		return -PM_ERR_DICKENS_SNOOP_DOMAIN;
-	}
-#endif
-	return rval;
-}
-
-static void axxia_pwrc_disable_ipi_interrupts(unsigned int cpu)
-{
-#if 0
-	axxia_pwrc_clear_bits_syscon_register(ipi_register[cpu], IPI_IRQ_MASK);
-#endif
-}
-
-static void axxia_pwrc_enable_ipi_interrupts(unsigned int cpu)
-{
-#if 0
-	unsigned int i;
-	unsigned int powered_on_cpu = (~(axxia_pwrc_cpu_powered_down) & IPI_IRQ_MASK);
-
-	axxia_pwrc_set_bits_syscon_register(ipi_register[cpu], powered_on_cpu);
-
-	for (i = 0; i < PLATFORM_CORE_COUNT; i++) {
-		if ((1 << i) & powered_on_cpu)
-			axxia_pwrc_or_bits_syscon_register(ipi_register[i], (1 << cpu));
-	}
-#endif
-
-	return;
-}
-
-bool axxia_pwrc_cpu_active(unsigned int cpu)
-{
-  /*TODO*/
-#if 1
-  return FALSE;
-#else
-	bool failure = FALSE;
-	unsigned int reg;
-
-	reg = mmio_read_32(SYSCON_BASE + SYSCON_PWR_QACTIVE);
-	if (reg & (1 << cpu))
-		failure = TRUE;
-
-	return failure;
-#endif
+		tf_printf("Adding cluster %u to the coherency domain failed!\n", cluster);
 }
 
 int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
@@ -448,84 +323,84 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 	last_cpu = axxia_pwrc_cpu_last_of_cluster(reqcpu);
 	if (last_cpu) {
 
-		/* Disable all the interrupts to the cluster gic */
-		// TODO axxia_pwrc_or_bits_syscon_register(SYSCON_GIC_DISABLE, cluster_mask);
+		/* Shut down the ACP interface is a step in power down however the AXXIA has not ACP so it is skipped*/
+		/* Signal that the ACP interface is idle */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_AINACTS, cluster_mask);
 
-		/* Remove the cluster from the Dickens coherency domain */
-		axxia_pwrc_dickens_logical_shutdown(cluster);
+		/* Disable and invalidate the L1 data cache */
+		axxia_pwrc_disable_cache();
 
-		/* Power down the cpu */
-		axxia_pwrc_cpu_physical_isolation_and_power_down(reqcpu);
+		/* CLear and invalidate the the L2 cache */
+		plat_flush_dcache_l2();
 
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_CNT, cluster_mask);
-		rval = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CACTIVE_CNT, cluster);
-		if (rval) {
-			ERROR(
-					"Failed to keep other cluster count going on cluster %u: %s-%d\n",
-					cluster, __FILE__, __LINE__);
-
-			goto axxia_pwrc_shutdown_exit;
-		}
-
-		/* Turn off the ACE */
-		/* TODO */
-		/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_ACEPWRDNRQ, cluster_mask);*/
-
-		/* Wait for ACE to complete power off */
-		/* TODO */
-		/*rval = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_NACEPWRDNACK, cluster);*/
-#if 0
-		if (rval) {
-			ERROR("Failed to power off ACE on cluster %u: %s-%d\n",
-					cluster, __FILE__, __LINE__);
-			goto axxia_pwrc_shutdown_exit;
-		}
-#endif
-
-		/* Isolate the cluster */
-		/* TODO */
-		/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_ISOLATEL2MISC, cluster_mask);*/
-
-		/* Wait for WFI L2 to go to standby */
-		rval = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_STANDBYWFIL2, cluster);
-		if (rval) {
-			ERROR("Failed to enter L2 WFI on cluster %u: %s-%d\n",
-					cluster, __FILE__, __LINE__);
-			goto axxia_pwrc_shutdown_exit;
-		}
+		/* Remove the cluster from the CCN-504 coherency domain to ensure there will be no snoop requests */
+		axxia_pwrc_l3_logical_shutdown(cluster);
 
 		/* Power off the L2 */
-		axxia_pwrc_L2_isolation_and_power_down(cluster);
-		if (rval == PSCI_E_SUCCESS) {
-			INFO("CPU %u is powered down with cluster: %u\n", reqcpu, cluster);
-			axxia_pwrc_cpu_powered_down |= (1 << reqcpu);
-		} else
-			ERROR("CPU %u failed to power down\n", reqcpu);
+
+		/* Enable self power down of last CPU */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_ENABLE_SELF_PWRDN, (1 << reqcpu));
+
+		/* Enable power down cpu */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_DOWN_CPU, (1 << reqcpu));
+
+		/* Arm the hardware cluster power down sequence. */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_DOWN_CLUSTER, cluster_mask);
+
+		/* Signal that the cluster's logic that no snoop request will be directed to the cluster */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_SINACT, cluster_mask);
+
+		INFO("CPU %u is powered down with cluster: %u\n", reqcpu, cluster);
+		axxia_pwrc_cpu_powered_down |= (1 << reqcpu);
 
 	} else {
 
+		axxia_pwrc_disable_cache();
+
 		rval = axxia_pwrc_cpu_physical_isolation_and_power_down(reqcpu);
 		if (rval == PSCI_E_SUCCESS)
-		{
 			axxia_pwrc_cpu_powered_down |= (1 << reqcpu);
-		}
 		else
 			ERROR("CPU %u failed to power down\n", reqcpu);
 	}
 
-axxia_pwrc_shutdown_exit:
 	return rval;
 }
 
 int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 {
 
-	bool first_cpu;
+	bool first_cpu = FALSE;
 	int rval = PSCI_E_SUCCESS;
 	unsigned int cpu_mask = (0x01 << reqcpu);
 
 	unsigned int cluster = reqcpu / PLATFORM_MAX_CPUS_PER_CLUSTER;
-	//unsigned int cluster_mask = (0x01 << cluster);
+
+	/* Put the CPU into reset */
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWRUP_CPU_RST, cpu_mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+
+	/* Toggle the CPU hold (not in the documentation but needed to work */
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_HOLD_CPU, cpu_mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+
+	/*
+	 * Power up the CPU
+	 */
+	/* Set up reset vector for cpu */
+	mmio_write_32(0x8031000000,
+			(0x14000000 |
+					(axxia_sec_entry_point - 0x8031000000) / 4));
+	isb();
+	dsb();
+
+	rval = axxia_pwrc_cpu_physical_connection_and_power_up(reqcpu);
+	if (rval) {
+		ERROR("Failed to power up physical connection of cpu: %u\n", reqcpu);
+		goto axxia_pwrc_power_up;
+	}
 
 	/*
 	 * Is this the first cpu of a cluster to come back on?
@@ -534,46 +409,24 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	first_cpu = axxia_pwrc_first_cpu_of_cluster(reqcpu);
 	if (first_cpu) {
 
-		rval = axxia_pwrc_L2_logical_powerup(cluster, reqcpu);
+		rval = axxia_pwrc_L2_physical_connection_and_power_up(cluster);
 		if (rval) {
 			ERROR("CPU: Failed the logical L2 power up\n");
 			goto axxia_pwrc_power_up;
-		} else
+		} else {
 			INFO("CPU %u is powered up with cluster: %u\n", reqcpu, cluster);
+		}
 
 		cluster_power_up[cluster] = TRUE;
-		// TODO axxia_pwrc_clear_bits_syscon_register(SYSCON_GIC_DISABLE, cluster_mask);
-
 	}
-
-	/* Set the CPU into reset */
-	mmio_write_32(0x8031000000,
-			(0x14000000 |
-					(axxia_sec_entry_point - 0x8031000000) / 4));
-	dsb();
 
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
-	axxia_pwrc_or_bits_syscon_register(SYSCON_HOLD_CPU, (1 << reqcpu));
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_CPU, cpu_mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
-	axxia_pwrc_or_bits_syscon_register(SYSCON_PWRUP_CPU_RST, cpu_mask);
-
-
-	/*
-	 * Power up the CPU
-	 */
-	rval = axxia_pwrc_cpu_physical_connection_and_power_up(reqcpu);
-	if (rval) {
-		ERROR("Failed to power up physical connection of cpu: %u\n", reqcpu);
-		goto axxia_pwrc_power_up;
-	}
-
-	/*
-	 * The key value must be written before the CPU RST can be written.
-	 */
-
+	/* Take the CPU out of reset and let it go. */
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWRUP_CPU_RST,	cpu_mask);
-
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_CPU, (1 << reqcpu));
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
 	/*
@@ -581,10 +434,8 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	 */
 	axxia_pwrc_cpu_powered_down &= ~(1 << reqcpu);
 
-	/* Enable the CPU IPI */
-	axxia_pwrc_enable_ipi_interrupts(reqcpu);
-
 axxia_pwrc_power_up:
+
 	return rval;
 }
 
@@ -593,75 +444,156 @@ unsigned int axxia_pwrc_get_powered_down_cpu(void)
 	return axxia_pwrc_cpu_powered_down;
 }
 
-
-inline void axxia_pwrc_cpu_logical_powerup(void)
+inline void axxia_pwrc_disable_data_cache_hyp_mode(void)
 {
-#if 0
 	unsigned int v;
-	__asm__ volatile(
-	"	mrc	p15, 0, %0, c1, c0, 0\n"
-	"	orr	%0, %0, %1\n"
-	"	mcr	p15, 0, %0, c1, c0, 0\n"
-	"	mrc	p15, 0, %0, c1, c0, 0\n"
-	"	orr	%0, %0, %2\n"
-	"	mcr	p15, 0, %0, c1, c0, 0\n"
-	  : "=&r" (v)
-	  : "Ir" (1 << 2), "Ir" (1 << 12)
-	  : "cc");
-
-	/*
-	 *  Iniitalize the ACTLR2 register (all cores).
-	 */
 
 	__asm__ volatile(
-	"	mrc		p15, 1, %0, c15, c0, 4\n"
+	"	mrs	%0, SCTLR_EL2\n"
 	"	bic	%0, %0, %1\n"
-	"	mcr		p15, 1, %0, c15, c0, 4\n"
+	"	msr	SCTLR_EL2, %0\n"
 	: "=&r" (v)
-	: "Ir" (0x1)
+	: "Ir" (1 << 2)
 	: "cc");
 
 	isb();
 	dsb();
-#endif
 }
 
-inline void axxia_pwrc_cluster_logical_powerup(void)
+inline void axxia_pwrc_disable_data_cache(void)
 {
-#if 0
-	//unsigned int v;
+	unsigned int v;
 
-	/*
-	 * Initialize the L2CTLR register (primary core in each cluster).
-	 */
 	__asm__ volatile(
-	"	mrc	p15, 1, %0, c9, c0, 2\n"
+	"	mrs	%0, SCTLR_EL3\n"
+	"	bic	%0, %0, %1\n"
+	"	msr	SCTLR_EL3, %0\n"
+	: "=&r" (v)
+	: "Ir" (1 << 2)
+	: "cc");
+
+	isb();
+	dsb();
+}
+
+inline void axxia_pwrc_enable_data_cache_hyp_mode(void)
+{
+	unsigned int v;
+
+	__asm__ volatile(
+	"	mrs	%0, SCTLR_EL2\n"
 	"	orr	%0, %0, %1\n"
-	"	orr	%0, %0, %2\n"
-	"	mcr	p15, 1, %0, c9, c0, 2"
-	  : "=&r" (v)
-	  : "Ir" (0x01), "Ir" (0x1 << 21)
-	  : "cc");
+	"	msr	SCTLR_EL2, %0\n"
+	: "=&r" (v)
+	: "Ir" (1 << 2)
+	: "cc");
+
+	isb();
+	dsb();
+}
+
+inline void axxia_pwrc_enable_data_cache(void)
+{
+	unsigned int v;
+
+	__asm__ volatile(
+	"	mrs	%0, SCTLR_EL3\n"
+	"	orr	%0, %0, %1\n"
+	"	msr	SCTLR_EL3, %0\n"
+	: "=&r" (v)
+	: "Ir" (1 << 2)
+	: "cc");
+
+	isb();
+	dsb();
+}
+
+inline void axxia_pwrc_disable_data_coherency(void)
+{
+	unsigned int v;
+
+	__asm__ volatile(
+	"	mrs	%0, S3_1_c15_c2_1\n"
+	"	bic	%0, %0, %1\n"
+	"	msr	S3_1_c15_c2_1, %0\n"
+	: "=&r" (v)
+	: "Ir" (1 << 6)
+	: "cc");
+
+	isb();
+	dsb();
+}
+
+inline void axxia_pwrc_enable_data_coherency(void)
+{
+	unsigned int v;
+
+	__asm__ volatile(
+	"	mrs	%0, S3_1_c15_c2_1\n"
+	"	orr	%0, %0, %1\n"
+	"	msr	S3_1_c15_c2_1, %0\n"
+	: "=&r" (v)
+	: "Ir" (1 << 6)
+	: "cc");
+
+	isb();
+	dsb();
+}
+
+inline void axxia_pwrc_disable_l2_prefetch(void)
+{
+	long long v;
+
+	__asm__ volatile(
+	"	mrs	%0, S3_1_c15_c2_1\n"
+	"	orr	%0, %0, %1\n"
+	"	msr	S3_1_c15_c2_1, %0\n"
+	: "=&r" (v)
+	: "Ir" (0x4000000000)
+	: "cc");
+
+	__asm__ volatile(
+	"	mrs	%0, S3_1_c15_c2_1\n"
+	"	bic	%0, %0, %1\n"
+	"	msr	S3_1_c15_c2_1, %0\n"
+	: "=&r" (v)
+	: "Ir" (0x1B00000000)
+	: "cc");
+
 	isb();
 	dsb();
 
+}
+
+
+static void axxia_pwrc_disable_cache(void)
+{
 	/*
-	 * Initialize the L2ACTLR register (primary core in each cluster).
+	 * Check for Hypervisor mode and clear the HSCTLR.C bit otherwise clear the SCTLR.C bit
+	 * The prevents more data cache allocations and causes cacheable memory attributes to change to
+	 * Normal Non-cacheable. Subsequent loads and stores will not access the L1 or L2 cachees.
 	 */
-	__asm__ volatile(
-	"	mrc	p15, 1, r0, c15, c0, 0\n"
-	"	orr	%0, %0, %1\n"
-	"	orr	%0, %0, %2\n"
-	"	orr	%0, %0, %3\n"
-	"	orr	%0, %0, %4\n"
-	"	orr	%0, %0, %5\n"
-	"	mcr	p15, 1, %0, c15, c0, 0"
-	  : "=&r" (v)
-	  : "Ir" (0x1 << 3), "Ir" (0x1 << 7), "Ir" (0x1 << 12), "Ir" (0x1 << 13), "Ir" (0x1 << 14)
-	  : "cc");
-	isb();
-	dsb();
-#endif
+	if (IS_IN_EL(2))
+		axxia_pwrc_disable_data_cache_hyp_mode();
+	else
+		axxia_pwrc_disable_data_cache();
+
+	/* Disable L2 pre-fetches */
+	axxia_pwrc_disable_l2_prefetch();
+
+	/*
+	 * Clean and invalidate all data from the L1 Data cache. At completion, the L2 duplicate snoop
+	 * tag RAMfor the CPU core is empty. This prevents any new data cache snoops or data cache
+	 * maintenance operations from other cores in the cluster being issued to s new CPU core.
+	 */
+	plat_flush_dcache_l1();
+
+	/*
+	 * Disable data coherency with other cores in the cluster by clearing the CPUECTLR.SMPEN bit. Clearing the
+	 * SMPEN bit removes the CPU core from the cluster coherency domain and prevents it from receiving cache or TLB
+	 * maintenence operations broadcast by other cores in the cluster.
+	 */
+	axxia_pwrc_disable_data_coherency();
 
 }
 
@@ -670,49 +602,17 @@ static int axxia_pwrc_cpu_physical_isolation_and_power_down(int cpu)
 
 	int rval = PSCI_E_SUCCESS;
 
-	/*bool failure;*/
+	/*bool failure; */
 	unsigned int mask = (0x01 << cpu);
 
-	/* Disable the CPU IPI */
-	axxia_pwrc_disable_ipi_interrupts(cpu);
+	/* Enable self powerdown */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_ENABLE_SELF_PWRDN, mask);
 
-	/* Initiate power down of the CPU's HS Rams */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPCPURAM, mask);*/
+	/* Arm the the CPU core hardware power down state machine */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_DOWN_CPU, mask);
 
-	/* Wait until the RAM power down is complete */
-#if 0
-	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_NPWRUPCPURAM_ACK, cpu);
-	if (failure) {
-		rval = PSCI_E_INTERN_FAIL;
-		ERROR("CPU: Failed to power down CPU RAM\n");
-		goto power_down_cleanup;
-	}
-#endif
-
-	/* Activate the CPU's isolation clamps */
-	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_ISOLATECPU, mask);
-
-	/* Initiate power down of the CPU logic */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPCPUSTG2, mask);*/
-
-	//udelay(16);
-
-	/* Continue power down of the CPU logic */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPCPUSTG1, mask);*/
-
-#if 0
-	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_NPWRUPCPUSTG1_ACK, cpu);
-	if (failure) {
-		rval = PSCI_E_INTERN_FAIL;
-		ERROR("CPU: Failed to power down stage 1 cpu\n");
-		goto power_down_cleanup;
-	}
-#endif
-
-	/*power_down_cleanup:*/
+	isb();
+	dsb();
 
 	return rval;
 }
@@ -721,476 +621,391 @@ static int axxia_pwrc_cpu_physical_connection_and_power_up(int cpu)
 {
 	int rval = PSCI_E_SUCCESS;
 
-	/*bool failure;*/
+	bool failure;
 	unsigned int mask = (0x01 << cpu);
 
 	/* Initiate power up of the CPU */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPCPUSTG1, mask);*/
 
-	/* Wait until CPU logic power is compete */
-#if 0
-	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_NPWRUPCPUSTG1_ACK, cpu);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_DOWN_CPU, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_DOWN_CPU, cpu);
 	if (failure) {
 		rval = PSCI_E_INTERN_FAIL;
-		ERROR("CPU: Failed to get ACK from power up stage 1\n");
+		ERROR("CPU: Failed to reset power down cpu\n");
 		goto power_up_cleanup;
 	}
-#endif
 
-	/* Continue stage 2 power up of the CPU*/
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPCPUSTG2, mask);*/
-
-	udelay(16);
-
-	/* Initiate power up of HS Rams */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPCPURAM, mask);*/
-
-	/* Wait until the RAM power up is complete */
-#if 0
-	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_NPWRUPCPURAM_ACK, cpu);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPCPU, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_PWRUPCPU, cpu);
 	if (failure) {
 		rval = PSCI_E_INTERN_FAIL;
-		ERROR("CPU: Failed to get ACK of power power up\n");
+		ERROR("CPU: Failed to add physical power to CPU\n");
 		goto power_up_cleanup;
 	}
-#endif
 
-	/* Release the CPU's isolation clamps */
+	/* De-isolate the CPU */
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATECPU, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_ISOLATECPU, cpu);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to de-isolate CPU\n");
+		goto power_up_cleanup;
+	}
 
-	udelay(16);
-
-	/*power_up_cleanup:*/
+power_up_cleanup:
 
 	return rval;
 
 }
 /*========================================== L2 FUNCTIONS ========================================*/
 
-static void axxia_pwrc_L2_isolation_and_power_down(int cluster)
-{
-
-  /*unsigned int mask = (0x1 << cluster);*/
-
-	/* Enable the chip select for the cluster */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_CHIPSELECTEN, mask);*/
-
-	/* Disable the hsram */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL2HSRAM, mask);*/
-
-	switch (cluster) {
-	case (0):
-	  /*TODO*/
-#if 0
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-
-#endif
-#endif
-		break;
-	case (1):
-	  /*TODO*/
-#if 0
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-#endif
-#endif
-		break;
-	case (2):
-	  /* TODO */
-#if 0
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-#endif
-#endif
-		break;
-	case (3):
-	  /*TODO*/
-#if 0
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-#endif
-#endif
-		break;
-	default:
-		ERROR("Illegal cluster: %d > 3\n", cluster);
-		break;
-	}
-
-	/* Power down stage 2 */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL2LGCSTG2, mask);*/
-
-	/* Power down stage 1 */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRUPL2LGCSTG1, mask);*/
-
-}
-
 static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
-{
-
-  /*unsigned int mask = (0x1 << cluster);*/
-	int rval = PSCI_E_SUCCESS;
-
-	/* Power up stage 1 */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2LGCSTG1, mask);*/
-
-	/* Wait for the stage 1 power up to complete */
-	/* TODO */
-	/*rval = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_NPWRUPL2LGCSTG1_ACK, cluster);
-	if (rval) {
-		ERROR("CPU: Failed to ack the L2 Stage 1 Power up\n");
-		goto power_up_l2_cleanup;
-		}*/
-
-	/* Power on stage 2 */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2LGCSTG2, mask);*/
-
-	/* Set the chip select */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_CHIPSELECTEN, mask);*/
-
-	/* Power up the snoop ram */
-	/* TODO */
-	/*axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2HSRAM, mask);*/
-
-	/* Wait for the stage 1 power up to complete */
-#if 0
-	rval = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_NPWRUPL2HSRAM_ACK, cluster);
-	if (rval) {
-		ERROR("CPU: failed to get the HSRAM power up ACK\n");
-		goto power_up_l2_cleanup;
-	}
-#endif
-
-	switch (cluster) {
-	case (0):
-
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL20RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-
-#endif
-		break;
-	case (1):
-
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-	udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL21RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-#endif
-		break;
-	case (2):
-
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL22RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-#endif
-		break;
-	case (3):
-
-#ifdef PM_POWER_OFF_ONLY_DATARAM
-
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM1, RAM_BANK0_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM1, RAM_BANK1_LS_MASK);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_BANK1_MS_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_BANK2_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(syscon,
-				SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_BANK3_MASK);
-		udelay(20);
-#elif 0
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM2, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM1, RAM_ALL_MASK);
-		udelay(20);
-		axxia_pwrc_set_bits_syscon_register(SYSCON_PWR_PWRUPL23RAM_PWRUPL2RAM0, RAM_ALL_MASK);
-		udelay(20);
-#endif
-		break;
-	default:
-		ERROR("Illegal cluster: %u > 3\n", cluster);
-		break;
-	}
-
-	/* Clear the chip select */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CHIPSELECTEN, mask);*/
-
-	/* Release the isolation clamps */
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEL2MISC, mask);*/
-
-	/* Turn the ACE bridge power on*/
-	/* TODO */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ACEPWRDNRQ, mask);*/
-
-	/*power_up_l2_cleanup:*/
-	return rval;
-}
-
-static int axxia_pwrc_L2_logical_powerup(unsigned int cluster, unsigned int cpu)
 {
 
 	unsigned int mask = (0x1 << cluster);
 	int rval = PSCI_E_SUCCESS;
-	unsigned int cluster_mask;
+	unsigned int failure;
 
-	if (cluster == 0)
-		cluster_mask = 0xe;
-	else
-		cluster_mask = 0xf << (cluster * 4);
+	/* Make sure that all cpus are in reset */
 
-	/* put the cluster into a cpu hold */
-	if (IS_5600())
-		axxia_pwrc_or_bits_syscon_register(X9_SYSCON_RESET_AXIS,
-						   cluster_to_poreset[cluster]);
-	else
-		axxia_pwrc_or_bits_syscon_register(XLF_SYSCON_RESET_AXIS,
-						   cluster_to_poreset[cluster]);
 
-	/*
-	 * The key value has to be written before the CPU RST can be written.
-	 */
-	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
-	axxia_pwrc_or_bits_syscon_register(SYSCON_PWRUP_CPU_RST, cluster_mask);
-
-	/* Hold the chip debug cluster */
-	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
-	axxia_pwrc_or_bits_syscon_register(SYSCON_HOLD_DBG, mask);
-
-	/* Hold the L2 cluster */
+	/* Ensure the L2 is held in reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_or_bits_syscon_register(SYSCON_HOLD_L2, mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_HOLD_L2, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: L2 not in reset\n");
+		goto power_up_l2_cleanup;
+	}
 
+	/* Keep the ADB interfaces logically powered off */
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_APB, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_APB, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear CSYSREQ_APB\n");
+		goto power_up_l2_cleanup;
+	}
 
-	/* Cluster physical power up */
-	rval = axxia_pwrc_L2_physical_connection_and_power_up(cluster);
-	if (rval)
-		goto exit_axxia_pwrc_L2_logical_powerup;
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_ATB, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_ATB, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear CSYSREQ_ATB\n");
+		goto power_up_l2_cleanup;
+	}
 
-	//udelay(16);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_CNT, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_CNT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear CSYSREQ_CNT\n");
+		goto power_up_l2_cleanup;
+	}
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_TS, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_TS, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear CSYSREQ_TS\n");
+		goto power_up_l2_cleanup;
+	}
 
-	/* take the cluster out of a cpu hold */
-	if (IS_5600())
-		axxia_pwrc_clear_bits_syscon_register(X9_SYSCON_RESET_AXIS,
-						      cluster_to_poreset[cluster]);
-	else
-		axxia_pwrc_clear_bits_syscon_register(XLF_SYSCON_RESET_AXIS,
-						      cluster_to_poreset[cluster]);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PREQ, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_PACCEPT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear PREQ\n");
+		goto power_up_l2_cleanup;
+	}
 
-	//udelay(64);
+	/* Keep the ACP interfaces logically powered off */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ACP, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_PWRDNACK_ACP, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set PWRDNREQ_ACP\n");
+		goto power_up_l2_cleanup;
+	}
 
-	/* Enable the system counter */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ICCT, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_PWRDNACK_ICCT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set PWRDNREQ_ICCT\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ICDT, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_PWRDNACK_ICDT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set PWRDNREQ_ICDT\n");
+		goto power_up_l2_cleanup;
+	}
+
+	/* Power on the L2 power domain */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2PLUS, mask);
+	udelay(12);
+
+	/* Activate L2 interfaces */
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEL2PLUS, mask);
+	udelay(12);
+
+	/* Release the cluster bridges from reset */
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_DSSB, mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_HOLD_DSSB, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear SYSCON_HOLD_DSSB\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_INFRA, mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_HOLD_INFRA, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear SYSCON_HOLD_INFRA\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_STREAM, mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_HOLD_STREAM, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear SYSCON_HOLD_STREAM\n");
+		goto power_up_l2_cleanup;
+	}
+
+	/* Power up the cluster */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_CSYSREQ_APB, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_CSYSACK_APB, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set CSYSREQ_APB\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_CSYSREQ_ATB, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_CSYSACK_ATB, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set CSYSREQ_ATB\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_CSYSREQ_TS, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_CSYSACK_TS, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set CSYSREQ_TS\n");
+		goto power_up_l2_cleanup;
+	}
+
+	/* Set the cluster state to power on before requesting the change */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PSTATE, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_PSTATE, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set SYSCON_PWR_PSTATE\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PREQ, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_PACCEPT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set PREQ\n");
+		goto power_up_l2_cleanup;
+	}
+
+	/* Keep the ACP interfaces logically power on*/
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ACP, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_PWRDNACK_ACP, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear PWRDNREQ_ACP\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ICCT, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_PWRDNACK_ICCT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear PWRDNREQ_ICCT\n");
+		goto power_up_l2_cleanup;
+	}
+
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ICDT, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_PWRDNACK_ICDT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear PWRDNREQ_ICDT\n");
+		goto power_up_l2_cleanup;
+	}
+
 	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_CSYSREQ_CNT, mask);
+#if 0
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_CSYSACK_CNT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set CSYSREQ_CNT\n");
+		goto power_up_l2_cleanup;
+	}
+#endif
 
-	/* Release the L2 cluster */
+	/* Prevent inadvertent snoops from corrupting the L2 */
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_SINACT, mask);
+	failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_PWR_SINACT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to set SYSCON_PWR_SINACT\n");
+		goto power_up_l2_cleanup;
+	}
+
+	/* Release the L2 from reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_L2, mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_HOLD_L2, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear SYSCON_HOLD_L2\n");
+		goto power_up_l2_cleanup;
+	}
 
-	/* Release the chip debug cluster */
-	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_DBG, mask);
+	/* Start L2 snooping */
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_SINACT, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_SINACT, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear SYSCON_PWR_SINACT\n");
+		goto power_up_l2_cleanup;
+	}
 
-	/* Power up the dickens */
-	rval = axxia_pwrc_dickens_logical_powerup(cluster);
-	if (rval)
-		goto exit_axxia_pwrc_L2_logical_powerup;
+	/* Release the ACP */
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_AINACTS, mask);
+	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_AINACTS, cluster);
+	if (failure) {
+		rval = PSCI_E_INTERN_FAIL;
+		ERROR("CPU: Failed to clear SYSCON_PWR_AINACTS\n");
+		goto power_up_l2_cleanup;
+	}
 
-	/* start L2 */
-	/* TODO: Figure out how to do this on X9/XLF!!! */
-	/*axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ACINACTM, mask);*/
+	/* Add the cluster back to the CCN-504 and DVM domain */
+	axxia_pwrc_l3_logical_powerup(cluster);
 
-exit_axxia_pwrc_L2_logical_powerup:
-
+power_up_l2_cleanup:
 	return rval;
-
 }
 
 #ifdef DEBUG_CPU_PM
 
-void axxia_pwrc_debug_read_pwr_registers(void)
+static void l2_debug(void)
 {
-}
+	unsigned int val;
 
-void axxia_pwrc_dump_L2_registers(void)
-{
-}
+	printf("L2 DEBUG -------------------------------------\n");
 
-void axxia_pwrc_dump_dickens(void)
-{
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_AINACTS);
+	printf("SYSCON_PWR_AINACTS: 0x%x\n", val);
 
-	unsigned int status;
-	unsigned int i;
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_DBGPWRDUP);
+	printf("SYSCON_PWR_DBGPWRDUP: 0x%x\n", val);
 
-	for (i = 0; i < DKN_HNF_TOTAL_NODES; ++i) {
-		status = readl(
-				dickens + (0x10000 * (DKN_HNF_NODE_ID + i))
-						+ DKN_HNF_SNOOP_DOMAIN_CTL);
-		udelay(1);
-		ERROR("DKN_HNF_SNOOP_DOMAIN_CTL[%d]: 0x%x\n", i, status);
-	}
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWRUP_CPU_RST);
+	printf("SYSCON_PWRUP_CPU_RST: 0x%x\n", val);
 
-	status = readl(
-			dickens + (0x10000 * DKN_DVM_DOMAIN_OFFSET)
-					+ DKN_MN_DVM_DOMAIN_CTL);
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_DOWN_CPU);
+	printf("SYSCON_PWR_DOWN_CPU: 0x%x\n", val);
 
-	ERROR("DKN_MN_DVM_DOMAIN_CTL: 0x%x\n", status);
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_ISOLATECPU);
+	printf("SYSCON_PWR_ISOLATECPU: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRUPCPU);
+	printf("SYSCON_PWR_PWRUPCPU: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_L2);
+	printf("SYSCON_HOLD_L2: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_APB);
+	printf("SYSCON_PWR_CSYSREQ_APB: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_APB);
+	printf("SYSCON_PWR_CSYSACK_APB: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_ATB);
+	printf("SYSCON_PWR_CSYSREQ_ATB: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_ATB);
+	printf("SYSCON_PWR_CSYSACK_ATB: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_CNT);
+	printf("SYSCON_PWR_CSYSREQ_CNT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_CNT);
+	printf("SYSCON_PWR_CSYSACK_CNT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_TS);
+	printf("SYSCON_PWR_CSYSREQ_TS: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_TS);
+	printf("SYSCON_PWR_CSYSACK_TS: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PREQ);
+	printf("SYSCON_PWR_PREQ: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PSTATE);
+	printf("SYSCON_PWR_PSTATE: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNREQ_ACP);
+	printf("SYSCON_PWR_PWRDNREQ_ACP: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNACK_ACP);
+	printf("SYSCON_PWR_PWRDNACK_ACP: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNREQ_ICCT);
+	printf("SYSCON_PWR_PWRDNREQ_ICCT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNACK_ICCT);
+	printf("SYSCON_PWR_PWRDNACK_ICCT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNREQ_ICDT);
+	printf("SYSCON_PWR_PWRDNREQ_ICDT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNACK_ICDT);
+	printf("SYSCON_PWR_PWRDNACK_ICDT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_DSSB);
+	printf("SYSCON_HOLD_DSSB: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_INFRA);
+	printf("SYSCON_HOLD_INFRA: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_STREAM);
+	printf("SYSCON_HOLD_STREAM: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_ISOLATEL2PLUS);
+	printf("SYSCON_PWR_ISOLATEL2PLUS: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRUPL2PLUS);
+	printf("SYSCON_PWR_PWRUPL2PLUS: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_SINACT);
+	printf("SYSCON_PWR_SINACT: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_RESET_CTL);
+	printf("SYSCON_RESET_CTL: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_STANDBYWFI);
+	printf("SYSCON_PWR_STANDBYWFI: 0x%x\n", val);
+
 }
 
 #endif
