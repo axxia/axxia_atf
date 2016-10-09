@@ -144,8 +144,8 @@ set_dsp_state(unsigned long state)
 			continue;
 
 		if (0 != rc) {
-			ERROR("Changing DSP cluster 0 from %d to %d failed!\n",
-			      cs, s);
+			ERROR("Changing DSP cluster %d from %d to %d failed!\n",
+			      i, cs, s);
 		} else {
 			current_state &= ~(1 << i);
 			current_state |= (state & (1 << i));
