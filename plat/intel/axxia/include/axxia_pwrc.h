@@ -51,6 +51,11 @@
 #define     SYSCON_HOLD_INFRA                               (0x0000206c)
 #define     SYSCON_HOLD_STREAM                              (0x00002070)
 
+#define     SYSCON_PWR_DBGRSTREQ                            (0x0000202c)
+#define     SYSCON_PWR_ISOLATEPDBG                          (0x00002430)
+#define     SYSCON_PWR_PWRUPL2DBG                           (0x00002454)
+
+
 #define     XLF_SYSCON_RESET_AXIS                           (0x000020a0)
 #define     XLF_SYSCON_RESET_AXIS_ACCESS_SIZE               (0x00000004)
 

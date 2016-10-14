@@ -42,7 +42,8 @@
 #include <axxia_private.h>
 #include <axxia_pwrc.h>
 
-#undef DEBUG_CPU_PM
+/*#define DEBUG_CPU_PM*/
+/*#define L2_POWER*/
 
 #define PM_WAIT_TIME (10000)
 #define IPI_IRQ_MASK (0xFFFF)
@@ -88,7 +89,6 @@ static int axxia_pwrc_cpu_physical_isolation_and_power_down(int cpu);
 static int axxia_pwrc_cpu_physical_connection_and_power_up(int cpu);
 static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster);
 static void axxia_pwrc_l3_logical_shutdown(unsigned int cluster);
-static void axxia_pwrc_l3_logical_powerup(unsigned int cluster);
 
 static void axxia_pwrc_disable_cache(void);
 
@@ -296,12 +296,6 @@ static void axxia_pwrc_l3_logical_shutdown(unsigned int cluster)
 		tf_printf("Removing cluster %u to the coherency domain failed!\n", cluster);
 }
 
-static void axxia_pwrc_l3_logical_powerup(unsigned int cluster)
-{
-	if (0 != set_cluster_coherency(cluster, 1))
-		tf_printf("Adding cluster %u to the coherency domain failed!\n", cluster);
-}
-
 int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 {
 
@@ -364,6 +358,11 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 			ERROR("CPU %u failed to power down\n", reqcpu);
 	}
 
+#ifdef DEBUG_CPU_PM
+	if (reqcpu == 11)
+		l2_debug();
+#endif
+
 	return rval;
 }
 
@@ -387,22 +386,6 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
 	/*
-	 * Power up the CPU
-	 */
-	/* Set up reset vector for cpu */
-	mmio_write_32(0x8031000000,
-			(0x14000000 |
-					(axxia_sec_entry_point - 0x8031000000) / 4));
-	isb();
-	dsb();
-
-	rval = axxia_pwrc_cpu_physical_connection_and_power_up(reqcpu);
-	if (rval) {
-		ERROR("Failed to power up physical connection of cpu: %u\n", reqcpu);
-		goto axxia_pwrc_power_up;
-	}
-
-	/*
 	 * Is this the first cpu of a cluster to come back on?
 	 * Then power up the L2 cache.
 	 */
@@ -420,9 +403,34 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 		cluster_power_up[cluster] = TRUE;
 	}
 
+	/* Set up reset vector for cpu */
+	mmio_write_32(0x8031000000,
+			(0x14000000 |
+					(axxia_sec_entry_point - 0x8031000000) / 4));
+	isb();
+
+	/*
+	 * Power up the CPU
+	 */
+	rval = axxia_pwrc_cpu_physical_connection_and_power_up(reqcpu);
+	if (rval) {
+		ERROR("Failed to power up physical connection of cpu: %u\n", reqcpu);
+		goto axxia_pwrc_power_up;
+	}
+
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_CPU, cpu_mask);
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+
+#if 0
+	/* Turn on the DBG */
+	axxia_pwrc_enable_data_coherency();
+
+	if (IS_IN_EL(2))
+		axxia_pwrc_disable_data_cache_hyp_mode();
+	else
+		axxia_pwrc_disable_data_cache();
+#endif
 
 	/* Take the CPU out of reset and let it go. */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
@@ -433,6 +441,11 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	 * Clear the powered down mask
 	 */
 	axxia_pwrc_cpu_powered_down &= ~(1 << reqcpu);
+
+#ifdef DEBUG_CPU_PM
+	if (first_cpu)
+		l2_debug();
+#endif
 
 axxia_pwrc_power_up:
 
@@ -542,6 +555,7 @@ inline void axxia_pwrc_enable_data_coherency(void)
 
 inline void axxia_pwrc_disable_l2_prefetch(void)
 {
+#if 0
 	long long v;
 
 	__asm__ volatile(
@@ -562,6 +576,7 @@ inline void axxia_pwrc_disable_l2_prefetch(void)
 
 	isb();
 	dsb();
+#endif
 
 }
 
@@ -824,6 +839,7 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		ERROR("CPU: Failed to set PREQ\n");
 		goto power_up_l2_cleanup;
 	}
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PREQ, mask);
 
 	/* Keep the ACP interfaces logically power on*/
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ACP, mask);
@@ -869,6 +885,10 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
+	/* Reset the debug registers from the shutdown */
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEPDBG, mask);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2DBG, mask);
+
 	/* Release the L2 from reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_L2, mask);
@@ -898,8 +918,6 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	/* Add the cluster back to the CCN-504 and DVM domain */
-	axxia_pwrc_l3_logical_powerup(cluster);
 
 power_up_l2_cleanup:
 	return rval;
@@ -1005,6 +1023,19 @@ static void l2_debug(void)
 
 	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_STANDBYWFI);
 	printf("SYSCON_PWR_STANDBYWFI: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_DBGRSTREQ);
+	printf("SYSCON_PWR_DBGRSTREQ: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_ISOLATEPDBG);
+	printf("SYSCON_PWR_ISOLATEPDBG: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRUPL2DBG);
+	printf("SYSCON_PWR_PWRUPL2DBG: 0x%x\n", val);
+
+	val =	mmio_read_32(SYSCON_BASE + SYSCON_GIC_DISABLE);
+	printf("SYSCON_GIC_DISABLE: 0x%x\n", val);
+
 
 }
 
