@@ -81,6 +81,28 @@ uint64_t oem_svc_smc_handler(uint32_t smc_fid,
 		set_dsp_state(x1);
 		SMC_RET1(handle, 0);
 		break;
+	case 0xc3000002:
+		/* Get ACTLR_EL3 */
+		__asm__ __volatile__ ("mrs %0, actlr_el3" : "=r" (value));
+		SMC_RET2(handle, 0, value);
+		break;
+	case 0xc3000003:
+		/* Set ACTLR_EL3 */
+		__asm__ __volatile__ ("msr actlr_el3, %0" : : "r" (x1));
+		isb();
+		SMC_RET1(handle, 0);
+		break;
+	case 0xc3000004:
+		/* Get ACTLR_EL2 */
+		__asm__ __volatile__ ("mrs %0, actlr_el2" : "=r" (value));
+		SMC_RET2(handle, 0, value);
+		break;
+	case 0xc3000005:
+		/* Set ACTLR_EL2 */
+		__asm__ __volatile__ ("msr actlr_el2, %0" : : "r" (x1));
+		isb();
+		SMC_RET1(handle, 0);
+		break;
 	default:
 		break;
 	}
