@@ -42,16 +42,13 @@
 #include <axxia_private.h>
 #include <axxia_pwrc.h>
 
-/*#define DEBUG_CPU_PM*/
+extern void psci_do_pwrdown_cache_maintenance(unsigned int pwr_level);
+
 /*#define L2_POWER*/
 
 #define PM_WAIT_TIME (10000)
 #define IPI_IRQ_MASK (0xFFFF)
-
 #define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
-
-bool axxia_pwrc_in_progress[PLATFORM_CORE_COUNT];
-bool cluster_power_up[PLATFORM_CLUSTER_COUNT];
 
 static const unsigned int cluster_to_node[PLATFORM_CLUSTER_COUNT] = { DKN_CLUSTER0_NODE,
 DKN_CLUSTER1_NODE,
@@ -77,7 +74,6 @@ enum axxia_pwrc_error_code {
 
 unsigned int axxia_pwrc_cpu_powered_down;
 
-
 /*======================= LOCAL FUNCTIONS ==============================*/
 static void axxia_pwrc_set_bits_syscon_register(unsigned int reg, unsigned int data);
 static void axxia_pwrc_or_bits_syscon_register(unsigned int reg, unsigned int data);
@@ -88,13 +84,8 @@ static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg,
 static int axxia_pwrc_cpu_physical_isolation_and_power_down(int cpu);
 static int axxia_pwrc_cpu_physical_connection_and_power_up(int cpu);
 static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster);
-static void axxia_pwrc_l3_logical_shutdown(unsigned int cluster);
 
-static void axxia_pwrc_disable_cache(void);
-
-#ifdef DEBUG_CPU_PM
-static void l2_debug(void);
-#endif
+static void axxia_pwrc_disable_cache(bool leadCore);
 
 static bool axxia_pwrc_first_cpu_of_cluster(unsigned int cpu)
 {
@@ -290,12 +281,6 @@ static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg,
 	return PSCI_E_SUCCESS;
 }
 
-static void axxia_pwrc_l3_logical_shutdown(unsigned int cluster)
-{
-	if (0 != set_cluster_coherency(cluster, 0))
-		tf_printf("Removing cluster %u to the coherency domain failed!\n", cluster);
-}
-
 int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 {
 
@@ -317,26 +302,26 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 	last_cpu = axxia_pwrc_cpu_last_of_cluster(reqcpu);
 	if (last_cpu) {
 
+		//axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
+
 		/* Shut down the ACP interface is a step in power down however the AXXIA has not ACP so it is skipped*/
 		/* Signal that the ACP interface is idle */
-		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_AINACTS, cluster_mask);
+		//axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_AINACTS, cluster_mask);
 
 		/* Disable and invalidate the L1 data cache */
-		axxia_pwrc_disable_cache();
+		axxia_pwrc_disable_cache(TRUE);
 
-		/* CLear and invalidate the the L2 cache */
 		plat_flush_dcache_l2();
 
 		/* Remove the cluster from the CCN-504 coherency domain to ensure there will be no snoop requests */
-		axxia_pwrc_l3_logical_shutdown(cluster);
+		if (0 != set_cluster_coherency(cluster, 0))
+			WARN("Failed to remove cluster %u coherent!\n", cluster);
+
+		udelay(64);
+
+		axxia_pwrc_cpu_physical_isolation_and_power_down(reqcpu);
 
 		/* Power off the L2 */
-
-		/* Enable self power down of last CPU */
-		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_ENABLE_SELF_PWRDN, (1 << reqcpu));
-
-		/* Enable power down cpu */
-		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_DOWN_CPU, (1 << reqcpu));
 
 		/* Arm the hardware cluster power down sequence. */
 		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_DOWN_CLUSTER, cluster_mask);
@@ -344,12 +329,17 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 		/* Signal that the cluster's logic that no snoop request will be directed to the cluster */
 		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_SINACT, cluster_mask);
 
+		isb();
+		dsb();
+
 		INFO("CPU %u is powered down with cluster: %u\n", reqcpu, cluster);
 		axxia_pwrc_cpu_powered_down |= (1 << reqcpu);
 
 	} else {
 
-		axxia_pwrc_disable_cache();
+		//axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
+
+		axxia_pwrc_disable_cache(FALSE);
 
 		rval = axxia_pwrc_cpu_physical_isolation_and_power_down(reqcpu);
 		if (rval == PSCI_E_SUCCESS)
@@ -357,11 +347,6 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 		else
 			ERROR("CPU %u failed to power down\n", reqcpu);
 	}
-
-#ifdef DEBUG_CPU_PM
-	if (reqcpu == 11)
-		l2_debug();
-#endif
 
 	return rval;
 }
@@ -372,17 +357,16 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	bool first_cpu = FALSE;
 	int rval = PSCI_E_SUCCESS;
 	unsigned int cpu_mask = (0x01 << reqcpu);
-
 	unsigned int cluster = reqcpu / PLATFORM_MAX_CPUS_PER_CLUSTER;
+	unsigned int clear_mask = (0x0f << (cluster * 4));
+
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_HOLD_CPU, cpu_mask);
+	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
 	/* Put the CPU into reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_or_bits_syscon_register(SYSCON_PWRUP_CPU_RST, cpu_mask);
-	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
-
-	/* Toggle the CPU hold (not in the documentation but needed to work */
-	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
-	axxia_pwrc_or_bits_syscon_register(SYSCON_HOLD_CPU, cpu_mask);
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
 	/*
@@ -392,15 +376,18 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	first_cpu = axxia_pwrc_first_cpu_of_cluster(reqcpu);
 	if (first_cpu) {
 
+		/* Clear all power down flags for this cluster */
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ENABLE_SELF_PWRDN, clear_mask);
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_DOWN_CPU, clear_mask);
+
 		rval = axxia_pwrc_L2_physical_connection_and_power_up(cluster);
 		if (rval) {
 			ERROR("CPU: Failed the logical L2 power up\n");
 			goto axxia_pwrc_power_up;
 		} else {
-			INFO("CPU %u is powered up with cluster: %u\n", reqcpu, cluster);
+			//INFO("CPU %u is powered up with cluster: %u\n", reqcpu, cluster);
 		}
-
-		cluster_power_up[cluster] = TRUE;
+		udelay(64);
 	}
 
 	/* Set up reset vector for cpu */
@@ -422,39 +409,21 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_HOLD_CPU, cpu_mask);
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
-#if 0
-	/* Turn on the DBG */
-	axxia_pwrc_enable_data_coherency();
-
-	if (IS_IN_EL(2))
-		axxia_pwrc_disable_data_cache_hyp_mode();
-	else
-		axxia_pwrc_disable_data_cache();
-#endif
-
 	/* Take the CPU out of reset and let it go. */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWRUP_CPU_RST,	cpu_mask);
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+
+	//axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, cpu_mask);
 
 	/*
 	 * Clear the powered down mask
 	 */
 	axxia_pwrc_cpu_powered_down &= ~(1 << reqcpu);
 
-#ifdef DEBUG_CPU_PM
-	if (first_cpu)
-		l2_debug();
-#endif
-
 axxia_pwrc_power_up:
 
 	return rval;
-}
-
-unsigned int axxia_pwrc_get_powered_down_cpu(void)
-{
-	return axxia_pwrc_cpu_powered_down;
 }
 
 inline void axxia_pwrc_disable_data_cache_hyp_mode(void)
@@ -468,7 +437,6 @@ inline void axxia_pwrc_disable_data_cache_hyp_mode(void)
 	: "=&r" (v)
 	: "Ir" (1 << 2)
 	: "cc");
-
 	isb();
 	dsb();
 }
@@ -498,7 +466,7 @@ inline void axxia_pwrc_enable_data_cache_hyp_mode(void)
 	"	orr	%0, %0, %1\n"
 	"	msr	SCTLR_EL2, %0\n"
 	: "=&r" (v)
-	: "Ir" (1 << 2)
+	: "Ir" ((1 << 2) | (1 << 12))
 	: "cc");
 
 	isb();
@@ -514,7 +482,7 @@ inline void axxia_pwrc_enable_data_cache(void)
 	"	orr	%0, %0, %1\n"
 	"	msr	SCTLR_EL3, %0\n"
 	: "=&r" (v)
-	: "Ir" (1 << 2)
+	: "Ir" ((1 << 2) | (1 << 12))
 	: "cc");
 
 	isb();
@@ -555,7 +523,6 @@ inline void axxia_pwrc_enable_data_coherency(void)
 
 inline void axxia_pwrc_disable_l2_prefetch(void)
 {
-#if 0
 	long long v;
 
 	__asm__ volatile(
@@ -576,12 +543,11 @@ inline void axxia_pwrc_disable_l2_prefetch(void)
 
 	isb();
 	dsb();
-#endif
 
 }
 
 
-static void axxia_pwrc_disable_cache(void)
+static void axxia_pwrc_disable_cache(bool leadCore)
 {
 	/*
 	 * Check for Hypervisor mode and clear the HSCTLR.C bit otherwise clear the SCTLR.C bit
@@ -593,8 +559,12 @@ static void axxia_pwrc_disable_cache(void)
 	else
 		axxia_pwrc_disable_data_cache();
 
-	/* Disable L2 pre-fetches */
-	axxia_pwrc_disable_l2_prefetch();
+	/*
+	 * Disable the L2 prefetches by writing a one to bit[38] and zeros to bits [36:35, 33:32]
+	 * of the CPU Extended Control Register.
+	 */
+	if (!leadCore)
+		axxia_pwrc_disable_l2_prefetch();
 
 	/*
 	 * Clean and invalidate all data from the L1 Data cache. At completion, the L2 duplicate snoop
@@ -682,6 +652,7 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 
 	/* Make sure that all cpus are in reset */
 
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_DOWN_CLUSTER, mask);
 
 	/* Ensure the L2 is held in reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
@@ -712,12 +683,15 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 	}
 
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_CNT, mask);
+#if 0
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_CNT, cluster);
 	if (failure) {
 		rval = PSCI_E_INTERN_FAIL;
 		ERROR("CPU: Failed to clear CSYSREQ_CNT\n");
 		goto power_up_l2_cleanup;
 	}
+#endif
+
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_TS, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_TS, cluster);
 	if (failure) {
@@ -726,13 +700,14 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PREQ, mask);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PREQ, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_PACCEPT, cluster);
 	if (failure) {
 		rval = PSCI_E_INTERN_FAIL;
 		ERROR("CPU: Failed to clear PREQ\n");
 		goto power_up_l2_cleanup;
 	}
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PREQ, mask);
 
 	/* Keep the ACP interfaces logically powered off */
 	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRDNREQ_ACP, mask);
@@ -900,6 +875,13 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
+#if 0
+	/* Enable the coherency */
+	flush_l3();
+	if (0 != set_cluster_coherency(cluster, 1))
+		WARN("Failed to make cluster %u coherent!\n", cluster);
+#endif
+
 	/* Start L2 snooping */
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_SINACT, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_SINACT, cluster);
@@ -909,6 +891,8 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
+#if 0
+	/* The ACP is not connected do there is no need to do this */
 	/* Release the ACP */
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_AINACTS, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_AINACTS, cluster);
@@ -917,126 +901,11 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		ERROR("CPU: Failed to clear SYSCON_PWR_AINACTS\n");
 		goto power_up_l2_cleanup;
 	}
+#endif
 
 
 power_up_l2_cleanup:
 	return rval;
 }
 
-#ifdef DEBUG_CPU_PM
 
-static void l2_debug(void)
-{
-	unsigned int val;
-
-	printf("L2 DEBUG -------------------------------------\n");
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_AINACTS);
-	printf("SYSCON_PWR_AINACTS: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_DBGPWRDUP);
-	printf("SYSCON_PWR_DBGPWRDUP: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWRUP_CPU_RST);
-	printf("SYSCON_PWRUP_CPU_RST: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_DOWN_CPU);
-	printf("SYSCON_PWR_DOWN_CPU: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_ISOLATECPU);
-	printf("SYSCON_PWR_ISOLATECPU: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRUPCPU);
-	printf("SYSCON_PWR_PWRUPCPU: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_L2);
-	printf("SYSCON_HOLD_L2: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_APB);
-	printf("SYSCON_PWR_CSYSREQ_APB: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_APB);
-	printf("SYSCON_PWR_CSYSACK_APB: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_ATB);
-	printf("SYSCON_PWR_CSYSREQ_ATB: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_ATB);
-	printf("SYSCON_PWR_CSYSACK_ATB: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_CNT);
-	printf("SYSCON_PWR_CSYSREQ_CNT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_CNT);
-	printf("SYSCON_PWR_CSYSACK_CNT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSREQ_TS);
-	printf("SYSCON_PWR_CSYSREQ_TS: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_CSYSACK_TS);
-	printf("SYSCON_PWR_CSYSACK_TS: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PREQ);
-	printf("SYSCON_PWR_PREQ: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PSTATE);
-	printf("SYSCON_PWR_PSTATE: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNREQ_ACP);
-	printf("SYSCON_PWR_PWRDNREQ_ACP: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNACK_ACP);
-	printf("SYSCON_PWR_PWRDNACK_ACP: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNREQ_ICCT);
-	printf("SYSCON_PWR_PWRDNREQ_ICCT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNACK_ICCT);
-	printf("SYSCON_PWR_PWRDNACK_ICCT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNREQ_ICDT);
-	printf("SYSCON_PWR_PWRDNREQ_ICDT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRDNACK_ICDT);
-	printf("SYSCON_PWR_PWRDNACK_ICDT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_DSSB);
-	printf("SYSCON_HOLD_DSSB: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_INFRA);
-	printf("SYSCON_HOLD_INFRA: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_HOLD_STREAM);
-	printf("SYSCON_HOLD_STREAM: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_ISOLATEL2PLUS);
-	printf("SYSCON_PWR_ISOLATEL2PLUS: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRUPL2PLUS);
-	printf("SYSCON_PWR_PWRUPL2PLUS: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_SINACT);
-	printf("SYSCON_PWR_SINACT: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_RESET_CTL);
-	printf("SYSCON_RESET_CTL: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_STANDBYWFI);
-	printf("SYSCON_PWR_STANDBYWFI: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_DBGRSTREQ);
-	printf("SYSCON_PWR_DBGRSTREQ: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_ISOLATEPDBG);
-	printf("SYSCON_PWR_ISOLATEPDBG: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_PWR_PWRUPL2DBG);
-	printf("SYSCON_PWR_PWRUPL2DBG: 0x%x\n", val);
-
-	val =	mmio_read_32(SYSCON_BASE + SYSCON_GIC_DISABLE);
-	printf("SYSCON_GIC_DISABLE: 0x%x\n", val);
-
-
-}
-
-#endif

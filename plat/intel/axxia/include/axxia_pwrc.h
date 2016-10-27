@@ -96,6 +96,7 @@
 #define     SYSCON_PWR_PWRDNACK_ACP                         (0x000024e8)
 #define     SYSCON_PWR_PWRDNACK_ICCT                        (0x000024ec)
 #define     SYSCON_PWR_PWRDNACK_ICDT                        (0x000024f0)
+#define     SYSCON_PWR_GIC_CPU_ACTIVE                       (0x00002474)
 
 #define     SYSCON_PWR_PWRUPCPURAM                          (0x00002488)
 #define     SYSCON_PWR_ISOLATECPU                           (0x00002428)
@@ -168,9 +169,6 @@ void axxia_pwrc_enable_data_cache(void);
 void axxia_pwrc_enable_data_coherency(void);
 void axxia_pwrc_disable_l2_prefetch(void);
 
-extern bool axxia_pwrc_in_progress[];
-extern bool cluster_power_up[];
-extern unsigned int axxia_pwrc_cpu_powered_down;
 extern uint64_t axxia_sec_entry_point;
 
 #endif /* AXXIA_PWRC_H_ */

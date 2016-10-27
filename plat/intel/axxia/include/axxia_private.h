@@ -96,6 +96,8 @@ uint32_t ic_acknowledge_interrupt(void);
 uint32_t ic_get_interrupt_type(uint32_t id);
 void ic_end_of_interrupt(uint32_t id);
 void gic_cpuif_deactivate(uintptr_t gicc_base);
+void gic_cpuif_activate(uintptr_t gicc_base);
+
 void gic_cpuif_setup(void);
 void gic_pcpu_distif_setup(uintptr_t gicd_base);
 void axxia_gic_setup(void);
@@ -153,6 +155,7 @@ void bl2_plat_get_bl32_meminfo(struct meminfo *mem_info);
 void bl2_plat_get_bl33_meminfo(struct meminfo *mem_info);
 
 int set_cluster_coherency(unsigned, unsigned);
+void flush_l3(void);
 
 extern __uint64_t nca_base;
 extern int need_nca_swap;
