@@ -32,7 +32,8 @@
  * u-boot parameter file - how?!?
  */
 static int ddr_retention_enabled = 1;
-extern void __dead2 axxia_system_reset_wo_sm(void);
+extern void __dead2 axxia_system_reset_wo_sm_56xx(void);
+extern void __dead2 axxia_system_reset_wo_sm_xlf(void);
 
 enum {
 	AXXIA_ENGINE_CAAL,
@@ -40,7 +41,7 @@ enum {
 };
 
 unsigned long
-ncp_caal_regions_acp55xx[] = {
+ncp_caal_regions_acp56xx[] = {
 	NCP_REGION_ID(0x0b, 0x05),      /* SPPV2   */
 	NCP_REGION_ID(0x0c, 0x05),      /* SED     */
 	NCP_REGION_ID(0x0e, 0x05),      /* DPI_HFA */
@@ -62,7 +63,7 @@ ncp_caal_regions_acp55xx[] = {
 };
 
 unsigned long
-ncp_cnal_regions_acp55xx[] = {
+ncp_cnal_regions_acp56xx[] = {
 	NCP_REGION_ID(0x28, 0x05),      /* EIOASM0 */
 	NCP_REGION_ID(0x29, 0x05),      /* EIOASM1 */
 	NCP_REGION_ID(0x2a, 0x05),      /* EIOAS2  */
@@ -70,6 +71,53 @@ ncp_cnal_regions_acp55xx[] = {
 	NCP_REGION_ID(0x2c, 0x05),      /* EIOAS4  */
 	NCP_REGION_ID(0x2d, 0x05),      /* EIOAS5  */
 	NCP_REGION_ID(0x32, 0x05),      /* ISBS    */
+	NCP_REGION_ID(0xff, 0xff)
+};
+
+
+unsigned long
+ncp_caal_regions_xlf[] =
+{
+	NCP_REGION_ID(0x0b, 0x05),      /* SPPV2   */
+	NCP_REGION_ID(0x0c, 0x05),      /* SED     */
+	NCP_REGION_ID(0x0e, 0x05),      /* DPI_HFA */
+	NCP_REGION_ID(0x14, 0x05),      /* MTM     */
+	NCP_REGION_ID(0x14, 0x0a),      /* MTM2    */
+	NCP_REGION_ID(0x15, 0x00),      /* MME     */
+	NCP_REGION_ID(0x16, 0x05),      /* NCAV3   */
+	NCP_REGION_ID(0x16, 0x10),      /* NCAV32  */
+	NCP_REGION_ID(0x17, 0x05),      /* EIOAM   */
+	NCP_REGION_ID(0x19, 0x05),      /* TMGR    */
+	NCP_REGION_ID(0x1a, 0x05),      /* MPPY    */
+	NCP_REGION_ID(0x1a, 0x23),      /* MPPY2   */
+	NCP_REGION_ID(0x1a, 0x21),      /* MPPY3   */
+	NCP_REGION_ID(0x1b, 0x05),      /* PIC     */
+	NCP_REGION_ID(0x1c, 0x05),      /* PAB     */
+	NCP_REGION_ID(0x1f, 0x05),      /* EIOAMH  */
+	NCP_REGION_ID(0x31, 0x05),      /* ISB     */
+	NCP_REGION_ID(0x3e, 0x05),      /* DEC     */
+	NCP_REGION_ID(0x40, 0x05),      /* ERIF0   */
+	NCP_REGION_ID(0x41, 0x05),      /* ERIF0   */
+	NCP_REGION_ID(0x44, 0x05),      /* RIF0    */
+	NCP_REGION_ID(0x45, 0x05),      /* RIF0    */
+	NCP_REGION_ID(0xff, 0xff)
+};
+
+unsigned long
+ncp_cnal_regions_xlf[] =
+{
+	NCP_REGION_ID(0x28, 0x06),      /* EIOASM0 */
+	NCP_REGION_ID(0x28, 0x07),      /* EIOASM0 */
+	NCP_REGION_ID(0x29, 0x06),      /* EIOASM1 */
+	NCP_REGION_ID(0x29, 0x07),      /* EIOASM1 */
+	NCP_REGION_ID(0x2a, 0x06),      /* EIOAS2  */
+	NCP_REGION_ID(0x2a, 0x07),      /* EIOAS2  */
+	NCP_REGION_ID(0x2b, 0x06),      /* EIOAS3  */
+	NCP_REGION_ID(0x2b, 0x07),      /* EIOAS3  */
+	NCP_REGION_ID(0x32, 0x06),      /* ISBV2s0 */
+	NCP_REGION_ID(0x32, 0x07),      /* ISBV2s0 */
+	NCP_REGION_ID(0x35, 0x06),      /* ISBV2s1 */
+	NCP_REGION_ID(0x35, 0x07),      /* ISBV2s1 */
 	NCP_REGION_ID(0xff, 0xff)
 };
 
@@ -98,13 +146,21 @@ quiesce_vp_engine(int engine_type)
 
 	switch (engine_type) {
 	case AXXIA_ENGINE_CNAL:
-		engine_regions = ncp_cnal_regions_acp55xx;
+		if (IS_5600()) {
+			engine_regions = ncp_cnal_regions_acp56xx;
+		} else {
+			engine_regions = ncp_cnal_regions_xlf;
+		}
 		ort_off = 0x1c0;
 		owt_off = 0x1c4;
 		break;
 
 	case AXXIA_ENGINE_CAAL:
-		engine_regions = ncp_caal_regions_acp55xx;
+		if (IS_5600()) {
+			engine_regions = ncp_caal_regions_acp56xx;
+		} else {
+			engine_regions = ncp_caal_regions_xlf;
+		}
 		ort_off = 0xf8;
 		owt_off = 0xfc;
 		break;
@@ -212,21 +268,29 @@ reset_elm_trace(void)
 void
 initiate_retention_reset(void)
 {
+    	int is56xx;
+
 	if (0 == ddr_retention_enabled) {
 		tf_printf("DDR Retention Reset is Not Enabled\n");
 		return;
 	}
 
+	is56xx = IS_5600() ? 1 : 0;
+
 	/* TODO - quiesce VP engines */
 	quiesce_vp_engine(AXXIA_ENGINE_CAAL);
 	quiesce_vp_engine(AXXIA_ENGINE_CNAL);
-    quiesce_axis();
+	quiesce_axis();
 
 
 	/* reset ELM DDR access trace buffer */
 	reset_elm_trace();
 
-    axxia_system_reset_wo_sm();
+	if (is56xx) {
+		axxia_system_reset_wo_sm_56xx();
+	} else {
+		axxia_system_reset_wo_sm_xlf();
+	}
 
 	return;
 }

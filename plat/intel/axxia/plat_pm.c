@@ -45,7 +45,7 @@
 extern uint64_t axxia_sec_entry_point;
 extern int axxia_pwrc_validate_power_state(unsigned int power_state, psci_power_state_t *req_state);
 
-#define SYSCON_PSCRATCH     (SYSCON_BASE + 0x00dc)
+#define SYSCON_PSCRATCH     	(SYSCON_BASE + 0x00dc)
 #define SYSCON_RESET_KEY	(SYSCON_BASE + 0x2000)
 #define SYSCON_RESET_LOR	(SYSCON_BASE + 0x2004)
 #define SYSCON_RESET_CTRL	(SYSCON_BASE + 0x2008)
@@ -53,7 +53,8 @@ extern int axxia_pwrc_validate_power_state(unsigned int power_state, psci_power_
 #define   RSTCTL_RST_SYS        (1<<0)
 #define SYSCON_RESET_HOLD	(SYSCON_BASE + 0x2010)
 #define SYSCON_ALLOW_TIMER	(SYSCON_BASE + 0x2048)
-#define SYSCON_RESET_WO_SM  (SYSCON_BASE + 0x204c)
+#define SYSCON_RESET_WO_SM  	(SYSCON_BASE + 0x204c)
+#define SYSCON_ALLOW_TIMER_XLF	(SYSCON_BASE + 0x208c)
 
 
 static void __dead2 axxia_system_off(void)
@@ -96,16 +97,14 @@ static void __dead2 axxia_system_reset(void)
  * any subsequent access to AXIS/syscon/LSM etc.
  *
  * So, prior to writing this bit we set up a physical
- * timer to do a chipReset, then we write RESET_WO_SM
- * (which basically hangs the ARM) then wait for the
- * timer to reset the chip.
+ * timer to do a chipReset, then we write RESET_WO_SM * (which basically hangs the ARM) then wait for the * timer to reset the chip.
  *
  * We must use a physical timer instead of the watchdog
  * because the bootrom has special handling for watchdog
  * resets that we don't want for the retention reset.
  */
 
-void __dead2 axxia_system_reset_wo_sm(void)
+void __dead2 axxia_system_reset_wo_sm_56xx(void)
 {
 	unsigned int reg;
 
@@ -117,24 +116,61 @@ void __dead2 axxia_system_reset_wo_sm(void)
 	reg &= ~(1 << 7);
 	mmio_write_32(SYSCON_RESET_LOR, reg);
 
-    /* allow physical timer to generate a chip reset */
+/* allow physical timer to generate a chip reset */
 	mmio_write_32(SYSCON_ALLOW_TIMER, 0xffff);
 
-    reg = mmio_read_32(SYSCON_RESET_CTRL);
-    reg |= 0x00000020;  /* nstimrstreq_chip_enable */
-    mmio_write_32(SYSCON_RESET_CTRL, reg);
+	reg = mmio_read_32(SYSCON_RESET_CTRL);
+	reg |= 0x00000020;  /* nstimrstreq_chip_enable */
+	mmio_write_32(SYSCON_RESET_CTRL, reg);
 
-    /* disable timer and mask interrupt */
-    reg = 2;
-    __asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
+	/* disable timer and mask interrupt */
+	reg = 2;
+	__asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
 
-    /* initialize counter value */
-    reg = 0x00030d40;
-    __asm__ __volatile__ ("msr CNTHP_TVAL_EL2, %0"  : : "r" (reg));
+	/* initialize counter value */
+	reg = 0x00030d40;
+	__asm__ __volatile__ ("msr CNTHP_TVAL_EL2, %0"  : : "r" (reg));
 
-    /* restart timer */
-    reg = 1;
-    __asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
+	/* restart timer */
+	reg = 1;
+	__asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
+
+	/* write RESET_WO_SM */
+	mmio_write_32(SYSCON_RESET_WO_SM, 1);
+
+	while (1) ;
+}
+
+void __dead2 axxia_system_reset_wo_sm_xlf(void)
+{
+	unsigned int reg;
+
+	mmio_write_32(SYSCON_RESET_KEY, 0xab);
+
+
+	/* set boot mode to zero (internal boot) */
+	reg = mmio_read_32(SYSCON_RESET_LOR);
+	reg &= ~(1 << 1);
+	mmio_write_32(SYSCON_RESET_LOR, reg);
+
+	/* allow physical timer to generate a chip reset */
+	mmio_write_32(SYSCON_ALLOW_TIMER_XLF, 0xffffffff);
+
+	reg = mmio_read_32(SYSCON_RESET_CTRL);
+	reg |= 0x00000020;  /* nstimrstreq_chip_enable */
+	mmio_write_32(SYSCON_RESET_CTRL, reg);
+
+	/* disable timer and mask interrupt */
+	reg = 2;
+	__asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
+
+	/* initialize counter value */
+	reg = 0x00030d40;
+	__asm__ __volatile__ ("msr CNTHP_TVAL_EL2, %0"  : : "r" (reg));
+
+	/* restart timer */
+	reg = 1;
+	__asm__ __volatile__ ("msr CNTHP_CTL_EL2, %0"  : : "r" (reg));
 
 	/* write RESET_WO_SM */
 	mmio_write_32(SYSCON_RESET_WO_SM, 1);
