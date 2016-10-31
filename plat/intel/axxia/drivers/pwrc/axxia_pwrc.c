@@ -677,9 +677,13 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_ATB, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_ATB, cluster);
 	if (failure) {
-		rval = PSCI_E_INTERN_FAIL;
 		ERROR("CPU: Failed to clear CSYSREQ_ATB\n");
-		goto power_up_l2_cleanup;
+		/*
+		  Ignore this failure for now, there is a potential
+		  hardware problem on some chips under investigation.
+		*/
+		/*rval = PSCI_E_INTERN_FAIL;*/
+		/*goto power_up_l2_cleanup;*/
 	}
 
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_CNT, mask);
@@ -700,7 +704,7 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PREQ, mask);
+	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_PREQ, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_PACCEPT, cluster);
 	if (failure) {
 		rval = PSCI_E_INTERN_FAIL;
