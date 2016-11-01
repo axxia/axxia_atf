@@ -24,6 +24,7 @@
 #include <string.h>
 #include <debug.h>
 #include <mmio.h>
+#include <arch_helpers.h>
 #include "axxia_def.h"
 #include "axxia_private.h"
 
@@ -282,6 +283,13 @@ initiate_retention_reset(void)
 	quiesce_vp_engine(AXXIA_ENGINE_CNAL);
 	quiesce_axis();
 
+    /* flush all caches */
+    plat_flush_dcache_l1();
+    dsb();
+    plat_flush_dcache_l2();
+    dsb();
+    flush_l3();
+    dsb();
 
 	/* reset ELM DDR access trace buffer */
 	reset_elm_trace();
