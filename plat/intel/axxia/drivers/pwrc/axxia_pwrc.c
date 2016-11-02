@@ -44,7 +44,7 @@
 
 extern void psci_do_pwrdown_cache_maintenance(unsigned int pwr_level);
 
-/*#define L2_POWER*/
+#undef L2_POWER
 
 #define PM_WAIT_TIME (10000)
 #define IPI_IRQ_MASK (0xFFFF)
@@ -302,16 +302,13 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 	last_cpu = axxia_pwrc_cpu_last_of_cluster(reqcpu);
 	if (last_cpu) {
 
-		//axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
 
 		/* Shut down the ACP interface is a step in power down however the AXXIA has not ACP so it is skipped*/
 		/* Signal that the ACP interface is idle */
-		//axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_AINACTS, cluster_mask);
 
 		/* Disable and invalidate the L1 data cache */
 		axxia_pwrc_disable_cache(TRUE);
-
-		plat_flush_dcache_l2();
 
 		/* Remove the cluster from the CCN-504 coherency domain to ensure there will be no snoop requests */
 		if (0 != set_cluster_coherency(cluster, 0))
@@ -337,7 +334,7 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 	} else {
 
-		//axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
 
 		axxia_pwrc_disable_cache(FALSE);
 
@@ -385,7 +382,7 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 			ERROR("CPU: Failed the logical L2 power up\n");
 			goto axxia_pwrc_power_up;
 		} else {
-			//INFO("CPU %u is powered up with cluster: %u\n", reqcpu, cluster);
+			INFO("CPU %u is powered up with cluster: %u\n", reqcpu, cluster);
 		}
 		udelay(64);
 	}
@@ -414,7 +411,7 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWRUP_CPU_RST,	cpu_mask);
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
-	//axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, cpu_mask);
+	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, cpu_mask);
 
 	/*
 	 * Clear the powered down mask
@@ -879,13 +876,6 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-#if 0
-	/* Enable the coherency */
-	flush_l3();
-	if (0 != set_cluster_coherency(cluster, 1))
-		WARN("Failed to make cluster %u coherent!\n", cluster);
-#endif
-
 	/* Start L2 snooping */
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_SINACT, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_SINACT, cluster);
@@ -895,17 +885,8 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-#if 0
 	/* The ACP is not connected do there is no need to do this */
 	/* Release the ACP */
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_AINACTS, mask);
-	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_AINACTS, cluster);
-	if (failure) {
-		rval = PSCI_E_INTERN_FAIL;
-		ERROR("CPU: Failed to clear SYSCON_PWR_AINACTS\n");
-		goto power_up_l2_cleanup;
-	}
-#endif
 
 
 power_up_l2_cleanup:
