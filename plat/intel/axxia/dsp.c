@@ -79,7 +79,7 @@ disable_dsp_cluster(unsigned int cluster)
 	control |= L2CC_POWER_DOWN_EN;
 	mmio_write_32(cdc[cluster] + L2CC_CTRL, control);
 
-	retries = 100;
+	retries = 150000;
 
 	do {
 		status = mmio_read_32(cdc[cluster] + L2CC_STATUS);
