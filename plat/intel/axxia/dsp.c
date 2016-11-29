@@ -35,6 +35,59 @@ static unsigned long cdc[] = {	CDC0, CDC1, CDC2, CDC3 };
   ==============================================================================
 */
 
+/*
+ * flush_dsp_l2
+ *
+ * attempt to flush the DSP cluster L2 cache
+ */
+
+static int flush_dsp_l2(unsigned int cluster)
+{
+	unsigned int control;
+	unsigned int status;
+	int retries;
+
+	if (4 <= cluster)
+		return -1;
+
+
+	/* set L2CC_FLUSH_INIT */
+	control = mmio_read_32(cdc[cluster] + L2CC_CTRL);
+	control |= L2CC_FLUSH_INIT;
+	mmio_write_32(cdc[cluster] + L2CC_CTRL, control);
+
+	/* poll for L2CC_FLUSH_COMP */
+	retries = 150000;
+	do {
+		status = mmio_read_32(cdc[cluster] + L2CC_STATUS);
+	} while ((0 == (status & L2CC_FLUSH_COMP)) && (0 < --retries));
+
+	if (0 == retries) {
+		ERROR("Timed Out Flushing L2 for DSP Cluster %d\n", cluster);
+
+		return -1;
+	}
+
+	/* clear L2CC_FLUSH_INIT */
+	control &= ~L2CC_FLUSH_INIT;
+	mmio_write_32(cdc[cluster] + L2CC_CTRL, control);
+
+	/* poll for L2CC_FLUSH_COMP and L2CC_FLUSH_START to be zero */
+	retries = 150000;
+	do {
+		status = mmio_read_32(cdc[cluster] + L2CC_STATUS);
+	} while ((0 != (status & (L2CC_FLUSH_COMP | L2CC_FLUSH_START)) ) &&
+			 (0 < --retries));
+
+	if (0 == retries) {
+		ERROR("Timed Out clearing L2 flush status for DSP Cluster %d\n", cluster);
+
+		return -1;
+	}
+
+	return 0;
+}
+
 static int
 enable_dsp_cluster(unsigned int cluster)
 {
@@ -57,8 +110,8 @@ enable_dsp_cluster(unsigned int cluster)
   ------------------------------------------------------------------------------
   disable_dsp_cluster
 
-  Turn off the given cluster.  No attempt is made to preserve the
-  cache contents.
+  Turn off the given cluster.
+  We flush the cluster L2 prior to disabling
 */
 
 static int
@@ -70,6 +123,9 @@ disable_dsp_cluster(unsigned int cluster)
 
 	if (4 <= cluster)
 		return -1;
+
+	/* flush the cluster L2 */
+	flush_dsp_l2(cluster);
 
 	/* Remove the cluster from the coherency domain. */
 	if (0 != set_cluster_coherency(8 + cluster, 0))
