@@ -61,7 +61,9 @@ BL31_SOURCES +=                                            \
         plat/intel/axxia/ncr.c                             \
         plat/intel/axxia/dsp.c                             \
         plat/intel/axxia/oem_svc.c                         \
-        plat/intel/axxia/ddr_retention.c
+        plat/intel/axxia/aarch64/datalogger_dump.S         \
+        plat/intel/axxia/ddr_retention.c                   \
+        plat/intel/axxia/datalogger.c   
 
 ################################################################################
 # Axxia only uses BL31

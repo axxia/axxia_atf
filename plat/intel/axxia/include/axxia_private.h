@@ -193,4 +193,13 @@ initiate_retention_reset(void);
 void set_dsp_state(unsigned long state);
 unsigned long get_dsp_state(void);
 
+
+#ifdef CONFIG_DATALOGGER
+void dump_cpu_registers(unsigned long long ddr_address, unsigned int cpuNumber);
+void dump_gic_registers(unsigned long long ddr_address);
+void dump_ccn504_registers(unsigned long long ddr_address);
+uint64_t datalogger_int_handler(uint32_t id, uint32_t flags,void *handle,void *cookie);
+#endif //CONFIG_DATALOGGER
+
+
 #endif /* __AXXIA_PRIVATE_H__ */

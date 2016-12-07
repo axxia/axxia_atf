@@ -47,6 +47,20 @@
 
 #define CCN_HNF_NODE(index)	(CCN_HNF_OFFSET + 0x10000*(index))
 
+#define CCN_XP_NODE(index)	(CCN_XP_OFFSET + 0x10000*(index))
+
+#define ERRINT_STATUS		0x8
+#define DVM_DOMAIN_CTL		0x200
+#define ERR_SIG_VAL_63_0	0x300
+#define ERR_SIG_VAL_127_64	0x308
+#define ERR_SIG_VAL_191_128	0x310
+#define ERR_TYPE_31_0		0x320
+#define ERR_TYPE_63_32		0x328
+#define ERR_TYPE_95_64		0x330
+#define ERR_TYPE_159_128	0x340
+#define ERR_SYNDROME_REG0	0x400
+#define ERR_SYNDROME_REG1	0x408
+
 #ifndef __ASSEMBLY__
 
 /* Function declarations */

@@ -37,6 +37,9 @@
 	.globl	report_unhandled_exception
 	.globl	report_unhandled_interrupt
 	.globl	el3_panic
+	.global gp_regs
+	.global el3_sys_regs
+	.global non_el3_sys_regs
 
 #if CRASH_REPORTING
 #define REG_SIZE	0x8

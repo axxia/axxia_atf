@@ -134,10 +134,25 @@ extern axxia_configuration_t axxia_configuration;
 #define PL011_UART2_BASE	0x8080020000
 #define PL011_UART3_BASE	0x8080030000
 
-#define PL011_BAUDRATE		115200
-#define PL011_UART_CLK		24000000
+#define PL011_BAUDRATE		9600
+#define PL011_UART_CLK		250000000
 
 /* Secure Interrupts */
 #define IRQ_SEC_PHY_TIMER	10
+
+
+/*****************************************
+*** Datalogger  settings
+******************************************/
+#define CONFIG_DATALOGGER  /* Enable DDR Datalogger fucntionality (only use for X9, untested on other platforms) */
+
+#define DATALOGGER_STORE_BASE 0x30000000
+#define DATALOGGER_STORE_SIZE_PER_CPU  4096
+
+#define NUM_CORES 16
+
+#define DATALOGGER_POLL_LOOP_COUNT 0xfffff
+
+
 
 #endif /* __AXXIA_DEF_H__ */

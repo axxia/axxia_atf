@@ -171,9 +171,13 @@ entry_point_info_t *bl31_plat_get_next_image_ep_info(uint32_t type)
 
 	/* Use bl33 (u-boot) pre-loaded in RAM */
 	bl33_ep_info.pc = 0x00000000;
-	bl33_ep_info.spsr = SPSR_64(MODE_EL2, MODE_SP_ELX, DISABLE_ALL_EXCEPTIONS);
+
+	/* Modifed to unmask IRQ, FIQ, ABT, DBG */
+	bl33_ep_info.spsr = SPSR_64(MODE_EL2, MODE_SP_ELX, 0);
+
 	bl33_ep_info.args.arg0 = read_mpidr() & 0xffff;
-	SET_PARAM_HEAD(&bl33_ep_info, PARAM_IMAGE_BINARY, VERSION_1, NON_SECURE);
+	SET_PARAM_HEAD(&bl33_ep_info, PARAM_IMAGE_BINARY,
+		       VERSION_1, NON_SECURE);
 
 	return next_image_info;
 }

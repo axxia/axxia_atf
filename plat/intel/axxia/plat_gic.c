@@ -129,6 +129,11 @@ void gic_cpuif_setup(void)
 
 	write_icc_igrpen1_el3(0x3);
 	isb();
+
+	val = ENABLE_GRP0 | FIQ_EN;
+	val |= FIQ_BYP_DIS_GRP0 | IRQ_BYP_DIS_GRP0;
+	val |= FIQ_BYP_DIS_GRP1 | IRQ_BYP_DIS_GRP1;
+	gicc_write_ctlr(GICC_BASE, val);
 }
 
 /*******************************************************************************
@@ -171,7 +176,6 @@ static void gic_distif_setup(uintptr_t gicd_base)
 	ctlr = gicd_read_ctlr(gicd_base);
 	ctlr |= ENABLE_GRP0 | ENABLE_GRP1NS | ENABLE_GRP1S;
 	ctlr |= CTRL_ARE_S | CTRL_ARE_NS;
-	ctlr |= (1UL << 6);
 	gicd_write_ctlr(gicd_base, ctlr);
 
 	/* Mark all lines of SPIs as Group 1 (non-secure) */
@@ -181,6 +185,17 @@ static void gic_distif_setup(uintptr_t gicd_base)
 		mmio_write_32(gicd_base + GICD_IGROUPR + 4 + i * 4, ~0);
 		mmio_write_32(gicd_base + GICD_IGROUPMODR + 4 + i * 4, 0);
 	}
+
+#ifdef CONFIG_DATALOGGER
+	INFO("Force timer 7 int to Secure \n"); 
+
+	mmio_write_32(gicd_base + GICD_IGROUPR + 8,    0xffffffef);
+	mmio_write_32(gicd_base + GICD_IGROUPMODR + 8, 0x00000000); 
+
+	INFO("Enable timer 7 int in GICD \n");
+
+	mmio_write_32(gicd_base + GICD_ISENABLER + 8, 0x00000010);
+#endif /* CONFIG_DATALOGGER */
 }
 
 void axxia_gic_setup(void)
@@ -194,6 +209,28 @@ void axxia_gic_setup(void)
 
 	gic_distif_setup(gicd_base_);
 	gic_cpuif_setup();
+
+	enable_fiq();	
+	unsigned int scr_el3;
+	scr_el3 = read_scr();
+	scr_el3 |= SCR_FIQ_BIT;
+	write_scr(scr_el3);
+
+	unsigned int spsr_el3;
+	spsr_el3 = read_spsr_el3();
+	spsr_el3 &=0xffffffbf;
+	write_spsr_el3(spsr_el3);
+
+	uint64_t flags =0;
+	set_interrupt_rm_flag(flags,NON_SECURE);
+
+#ifdef CONFIG_DATALOGGER
+	uint64_t rc;
+	rc = register_interrupt_type_handler(INTR_TYPE_EL3,
+					     datalogger_int_handler, flags);
+        if (rc)
+        	panic();
+#endif //CONFIG_DATALOGGER
 }
 
 /*******************************************************************************
@@ -210,22 +247,21 @@ void axxia_gic_setup(void)
  ******************************************************************************/
 uint32_t plat_interrupt_type_to_line(uint32_t type, uint32_t security_state)
 {
-  /* FIX THISSSS */
-#if 0
-	assert(type == INTR_TYPE_S_EL1 ||
-	       type == INTR_TYPE_EL3 ||
-	       type == INTR_TYPE_NS);
+	uint32_t gicc_ctlr;
 
-	assert(sec_state_is_valid(security_state));
+        /* Non-secure interrupts are signalled on the IRQ line always */
+        if (type == INTR_TYPE_NS)
+                return __builtin_ctz(SCR_IRQ_BIT);
 
-	/*
-	 * We ignore the security state parameter because Juno is GICv2 only
-	 * so both normal and secure worlds are using ARM GICv2.
-	 */
-	return gicv2_interrupt_type_to_line(GICC_BASE, type);
-#else
-	return __builtin_ctz(SCR_IRQ_BIT);
-#endif
+        /*
+         * Secure interrupts are signalled using the IRQ line if the FIQ_EN
+         * bit is not set else they are signalled using the FIQ line.
+         */
+        gicc_ctlr = gicc_read_ctlr(GICC_BASE);
+        if (gicc_ctlr & FIQ_EN)
+                return __builtin_ctz(SCR_FIQ_BIT);
+        else
+                return __builtin_ctz(SCR_IRQ_BIT);
 }
 
 /*******************************************************************************
@@ -240,8 +276,9 @@ uint32_t plat_ic_get_pending_interrupt_type(void)
 	id = gicc_read_hppir(GICC_BASE);
 
 	/* Assume that all secure interrupts are S-EL1 interrupts */
-	if (id < 1022)
-		return INTR_TYPE_S_EL1;
+	/* Modified to assume all secure interrupts target EL3 */
+ 	if (id < 1022)
+		return INTR_TYPE_EL3;
 
 	if (id == GIC_SPURIOUS_INTERRUPT)
 		return INTR_TYPE_INVAL;
