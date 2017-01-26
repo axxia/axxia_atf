@@ -211,7 +211,7 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 	     target[axxia_configuration.target],
 	     platform[axxia_configuration.platform],
 	     option[axxia_configuration.option],
-	     axxia_configuration.per_clock_hz / (1024 * 1024),
+	     axxia_configuration.per_clock_hz / (1000 * 1000),
 	     axxia_configuration.baud_rate);
 
 	/*
