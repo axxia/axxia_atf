@@ -82,3 +82,8 @@ $(eval $(call add_define,WORKAROUND_CVE_2017_5715))
 WORKAROUND_CVE_2018_3639	?=1
 $(eval $(call assert_boolean,WORKAROUND_CVE_2018_3639))
 $(eval $(call add_define,WORKAROUND_CVE_2018_3639))
+
+# Process WORKAROUND_CVE_2017_7564 flag
+WORKAROUND_CVE_2017_7564   ?=0
+$(eval $(call assert_boolean,WORKAROUND_CVE_2017_7564))
+$(eval $(call add_define,WORKAROUND_CVE_2017_7564))
