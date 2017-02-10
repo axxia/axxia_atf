@@ -188,7 +188,52 @@ irq_sp_el0:
 
 	.align	7
 fiq_sp_el0:
-	bl	report_unhandled_interrupt
+	/* Enable the SError interrupt */
+	msr	daifclr, #DAIF_ABT_BIT
+
+	/* Select sp_elx */
+	msr	spsel, #1
+
+	/* Store gp regs */
+	str	x30, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_LR]
+	bl	save_gp_registers
+
+	/* Switch back to the runtime stack i.e. SP_EL0 */
+	mov	x20, sp
+	msr	spsel, #0
+
+	/*
+	 * Find out whether this is a valid interrupt type. If the
+	 * interrupt controller reports a spurious interrupt then
+	 * return to where we came from.
+	 */
+	bl	plat_ic_get_pending_interrupt_type
+	cmp	x0, #INTR_TYPE_INVAL
+	b.eq	interrupt_exit_fiq_sp_el0
+
+	bl	get_interrupt_type_handler
+	cbz	x0, interrupt_exit_fiq_sp_el0
+	mov	x21, x0
+
+	mov	x0, #INTR_ID_UNAVAILABLE
+
+	/* Set the current security state in the 'flags' parameter */
+	mrs	x2, scr_el3
+	ubfx	x1, x2, #0, #1
+
+	/* Restore the reference to the 'handle' i.e. SP_EL3 */
+	mov	x2, x20
+
+	/*  x3 will point to a cookie (not used now) */
+	mov	x3, xzr
+
+	/* Call the interrupt type handler */
+	blr	x21
+
+interrupt_exit_fiq_sp_el0:
+	/* Drop to normal crash handling*/
+	bl	report_unhandled_exception
+
 	check_vector_size fiq_sp_el0
 
 	.align	7

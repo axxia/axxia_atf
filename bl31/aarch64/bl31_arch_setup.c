@@ -36,6 +36,7 @@
 #include <cpu_data.h>
 #include <platform.h>
 
+
 /*******************************************************************************
  * This duplicates what the primary cpu did after a cold boot in BL1. The same
  * needs to be done when a cpu is hotplugged in. This function could also over-
@@ -43,8 +44,11 @@
  ******************************************************************************/
 void bl31_arch_setup(void)
 {
-	/* Set the RES1 bits in the SCR_EL3 */
-	write_scr_el3(SCR_RES1_BITS);
+	/*
+	  Set the RES1 bits in the SCR_EL3. Also set SCR_FIQ_BIT to
+	  route FIQs to EL3.
+	*/
+	write_scr_el3(SCR_RES1_BITS | SCR_FIQ_BIT);
 
 	/* Program the counter frequency */
 	write_cntfrq_el0(plat_get_syscnt_freq());
