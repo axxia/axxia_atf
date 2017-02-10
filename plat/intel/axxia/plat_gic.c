@@ -75,6 +75,7 @@ void gic_cpuif_setup(void)
 	unsigned int val, scr_val;
 	uintptr_t gicr_base;
 
+
 	if (IS_5600())
 		gicr_base = GICR_BASE_X9;
 	else
@@ -101,6 +102,31 @@ void gic_cpuif_setup(void)
 
 	/* Enable SGI 0 */
 	mmio_write_32(gicr_base + GICR_ISENABLER, 1);
+
+#ifdef CONFIG_DATALOGGER
+	/* Configure SGI 15 as secure group 0 */
+	unsigned int temp;
+	temp = mmio_read_32(gicr_base + GICR_IGROUPR);
+	mmio_write_32(gicr_base + GICR_IGROUPR, temp & 0xffff7fff);
+	temp = mmio_read_32(gicr_base + GICR_IGROUPMODR);
+	mmio_write_32(gicr_base + GICR_IGROUPMODR, temp & 0xffff7fff);
+
+	/* Enable routing of FIQs to EL3 */
+	unsigned int scr_el3;
+	scr_el3 = read_scr();
+	scr_el3 |= SCR_FIQ_BIT;
+	write_scr(scr_el3);
+
+
+	/* Enable SGI 15 */
+	temp = mmio_read_32(gicr_base + GICR_ISENABLER);
+	mmio_write_32(gicr_base + GICR_ISENABLER, (temp | 0x00008000)  );
+
+
+	/*Enable FIQ reception */
+	enable_fiq();
+
+#endif
 
 	val = read_icc_sre_el3();
 	val |= ICC_SRE_EN | ICC_SRE_DIB | ICC_SRE_DFB | ICC_SRE_SRE;
@@ -230,7 +256,7 @@ void axxia_gic_setup(void)
 					     datalogger_int_handler, flags);
         if (rc)
         	panic();
-#endif //CONFIG_DATALOGGER
+#endif /*CONFIG_DATALOGGER*/
 }
 
 /*******************************************************************************
