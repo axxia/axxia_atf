@@ -235,6 +235,15 @@ quiesce_axis(void)
     }
 }
 
+/*
+  In some situations, resets occasionally (1/500) hang in the
+  reset_elm_trace() function during a ddr retention reset.  If a clean
+  ELM trace is required, define RESET_ELM_TRACE below.  By default
+  RESET_ELM_TRACE is not defined.
+*/
+
+#undef RESET_ELM_TRACE
+#ifdef RESET_ELM_TRACE
 
 static inline void
 reset_elm_trace(void)
@@ -266,6 +275,8 @@ reset_elm_trace(void)
     }
 }
 
+#endif	/* RESET_ELM_TRACE */
+
 void
 initiate_retention_reset(void)
 {
@@ -292,7 +303,9 @@ initiate_retention_reset(void)
     dsb();
 
 	/* reset ELM DDR access trace buffer */
+#ifdef RESET_ELM_TRACE
 	reset_elm_trace();
+#endif
 
 	if (is56xx) {
 		axxia_system_reset_wo_sm_56xx();
