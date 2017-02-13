@@ -39,12 +39,6 @@
 
 #include "oem_svc.h"
 
-/* OEM Service UUID */
-DEFINE_SVC_UUID(oem_svc_uid,
-		0xb943add0, 0x069d, 0x11e4, 0x91, 0x91,
-		0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66);
-
-
 /* Setup OEM Services */
 static int32_t oem_svc_setup(void)
 {

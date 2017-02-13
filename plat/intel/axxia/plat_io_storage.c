@@ -67,16 +67,6 @@ static const io_file_spec_t bl31_file_spec = {
 	.mode = FOPEN_MODE_RB
 };
 
-static const io_file_spec_t bl32_file_spec = {
-	.path = BL32_IMAGE_NAME,
-	.mode = FOPEN_MODE_RB
-};
-
-static const io_file_spec_t bl33_file_spec = {
-	.path = BL33_IMAGE_NAME,
-	.mode = FOPEN_MODE_RB
-};
-
 static int open_fip(const uintptr_t spec);
 static int open_memmap(const uintptr_t spec);
 

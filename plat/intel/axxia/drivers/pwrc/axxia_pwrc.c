@@ -50,17 +50,6 @@ extern void psci_do_pwrdown_cache_maintenance(unsigned int pwr_level);
 #define IPI_IRQ_MASK (0xFFFF)
 #define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
 
-static const unsigned int cluster_to_node[PLATFORM_CLUSTER_COUNT] = { DKN_CLUSTER0_NODE,
-DKN_CLUSTER1_NODE,
-DKN_CLUSTER2_NODE,
-DKN_CLUSTER3_NODE };
-
-static const unsigned int cluster_to_poreset[PLATFORM_CLUSTER_COUNT] = {
-PORESET_CLUSTER0,
-PORESET_CLUSTER1,
-PORESET_CLUSTER2,
-PORESET_CLUSTER3 };
-
 enum axxia_pwrc_error_code {
 	PM_ERR_DICKENS_IOREMAP = 200,
 	PM_ERR_DICKENS_SNOOP_DOMAIN,
