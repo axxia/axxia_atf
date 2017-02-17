@@ -47,14 +47,22 @@
 #define     SYSCON_PWRUP_CPU_RST                            (0x00002014)
 #define     SYSCON_HOLD_L2                                  (0x00002018)
 #define     SYSCON_HOLD_DBG                                 (0x0000201c)
+#define     SYSCON_ALLOW_DBG                                (0x00002028)
 #define     SYSCON_HOLD_DSSB                                (0x00002074)
 #define     SYSCON_HOLD_INFRA                               (0x0000206c)
 #define     SYSCON_HOLD_STREAM                              (0x00002070)
+#define     SYSCON_CPU_RESET_DEASSERTION_TIMER              (0x00002078)
+#define     SYSCON_MODULE_RESET_DEASSERT_TIMER              (0x0000207C)
+#define     SYSCON_PERIPHERAL_RESET_DEASSERT_TIMER          (0x00002080)
+#define     SYSCON_TIMER_RESET_REGISTER                     (0x0000208C)
 
 #define     SYSCON_PWR_DBGRSTREQ                            (0x0000202c)
 #define     SYSCON_PWR_ISOLATEPDBG                          (0x00002430)
 #define     SYSCON_PWR_PWRUPL2DBG                           (0x00002454)
 
+#define     SYSCON_XLF_PWR_PWRUPTOP                         (0x00002454)
+#define     SYSCON_XLF_PWR_ISOLATETOP                       (0x00002430)
+#define     SYSCON_CPU_CLK_DISABLE                          (0x0000240c)
 
 #define     XLF_SYSCON_RESET_AXIS                           (0x000020a0)
 #define     XLF_SYSCON_RESET_AXIS_ACCESS_SIZE               (0x00000004)
@@ -106,6 +114,16 @@
 #define     SYSCON_PWR_DOWN_CPU                             (0x00002514)
 #define     SYSCON_PWR_DOWN_CLUSTER                         (0x00002518)
 #define     SYSCON_PWR_SINACT                               (0x0000245c)
+
+/* NCAP OFFSET CONSTANT */
+#define     NCAP_OFFSET_PER_TARGET_ID                       (0x00040000)
+
+/* NCAP REGISTERS */
+#define     NCAP_CONFIG_INIT                                (0x00010010)
+#define     NCAP_CONFIG_INIT_A53_ACP_PORT_MODE              (1 << 16)
+
+#define     NCAP_IDLE_STATUS                                (0x00010014)
+#define     NCAP_IDLE_STATUS_ALL_MASK                       (0x0000000D)
 
 #define		RAM_BANK0_MASK			(0x0FFF0000)
 #define		RAM_BANK1_LS_MASK		(0xF0000000)

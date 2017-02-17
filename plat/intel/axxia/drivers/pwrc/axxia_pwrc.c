@@ -79,65 +79,16 @@ static void axxia_pwrc_disable_cache(bool leadCore);
 static bool axxia_pwrc_first_cpu_of_cluster(unsigned int cpu)
 {
 #ifdef L2_POWER
-	unsigned int count = 0;
+	unsigned int cluster = cpu / PLATFORM_MAX_CPUS_PER_CLUSTER;
+	unsigned int cluster_mask = ((0xf << (4 * cluster)) & axxia_pwrc_cpu_powered_down) >> (4 * cluster);
 
-	switch (cpu) {
-	case (0):
-	case (1):
-	case (2):
-	case (3):
-		/* This will never happen because cpu 0 will never be turned off */
-		break;
-	case (4):
-	case (5):
-	case (6):
-	case (7):
-		if (axxia_pwrc_cpu_powered_down & (1 << 4))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 5))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 6))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 7))
-			count++;
-		if (count == 4)
-			return TRUE;
-		break;
-	case (8):
-	case (9):
-	case (10):
-	case (11):
-		if (axxia_pwrc_cpu_powered_down & (1 << 8))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 9))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 10))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 11))
-			count++;
-		if (count == 4)
-			return TRUE;
-		break;
-	case (12):
-	case (13):
-	case (14):
-	case (15):
-		if (axxia_pwrc_cpu_powered_down & (1 << 12))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 13))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 14))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 15))
-			count++;
-		if (count == 4)
-			return TRUE;
-		break;
-	default:
-		ERROR("ERROR: the cpu does not exist: %d - %s:%d\n", cpu, __FILE__,
-				__LINE__);
-		break;
-	}
+	/* Cluster 0 is never turned off so no need to turn it on */
+	if (cluster == 0)
+		return FALSE;
+
+	if ((cluster_mask & 0xF) == 0xF)
+		return TRUE;
+
 #endif
 	return FALSE;
 }
@@ -145,65 +96,18 @@ static bool axxia_pwrc_first_cpu_of_cluster(unsigned int cpu)
 bool axxia_pwrc_cpu_last_of_cluster(unsigned int cpu)
 {
 #ifdef L2_POWER
-	unsigned int count = 0;
+	unsigned int cluster = cpu / PLATFORM_MAX_CPUS_PER_CLUSTER;
+	unsigned int cluster_mask = ((0xf << (4 * cluster)) & axxia_pwrc_cpu_powered_down) >> (4 * cluster);
 
-	switch (cpu) {
-	case (0):
-	case (1):
-	case (2):
-	case (3):
-		/* This will never happen because cpu 0 will never be turned off */
-		break;
-	case (4):
-	case (5):
-	case (6):
-	case (7):
-		if (axxia_pwrc_cpu_powered_down & (1 << 4))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 5))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 6))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 7))
-			count++;
-		if (count == 3)
-			return TRUE;
-		break;
-	case (8):
-	case (9):
-	case (10):
-	case (11):
-		if (axxia_pwrc_cpu_powered_down & (1 << 8))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 9))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 10))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 11))
-			count++;
-		if (count == 3)
-			return TRUE;
-		break;
-	case (12):
-	case (13):
-	case (14):
-	case (15):
-		if (axxia_pwrc_cpu_powered_down & (1 << 12))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 13))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 14))
-			count++;
-		if (axxia_pwrc_cpu_powered_down & (1 << 15))
-			count++;
-		if (count == 3)
-			return TRUE;
-		break;
-	default:
-		ERROR("ERROR: the cpu does not exist: %d - %s:%d\n", cpu,  __FILE__,
-				__LINE__);
-		break;
-	}
+	/* Never turn off cluster 0 */
+	if (cluster == 0)
+		return FALSE;
+
+	if (((cluster_mask & 0xf) == 0x7) ||
+			((cluster_mask & 0xf) == 0xb) ||
+			((cluster_mask & 0xf) == 0xd) ||
+			((cluster_mask & 0xf) == 0xe) )
+		return TRUE;
 #endif
 	return FALSE;
 }
@@ -270,6 +174,30 @@ static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg,
 	return PSCI_E_SUCCESS;
 }
 
+static unsigned int axxia_pwrc_ncap_test_for_bit_with_timeout(unsigned int reg, unsigned int bit)
+{
+
+	unsigned int tmp = 0;
+	long long cnt = 0;
+
+	while (cnt < PM_WAIT_TIME) {
+		tmp = mmio_read_32(NCAP + reg);
+		if (CHECK_BIT(tmp, bit))
+			break;
+		cnt++;
+	}
+	if (cnt == PM_WAIT_TIME) {
+		ERROR("reg=0x%x tmp:=0x%x\n", reg, tmp);
+		return PSCI_E_INTERN_FAIL;
+	}
+	return PSCI_E_SUCCESS;
+}
+
+static void axxia_pwrc_ncap_set_bits_syscon_register(unsigned int reg, unsigned int data)
+{
+	mmio_write_32((NCAP + reg), data);
+}
+
 int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 {
 
@@ -277,6 +205,7 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 	unsigned int cluster_mask = (0x01 << cluster);
 	bool last_cpu;
 	int rval = PSCI_E_SUCCESS;
+	int failure = 0;
 
 	/* Check to see if the cpu is powered up */
 	if (axxia_pwrc_cpu_powered_down & (1 << reqcpu)) {
@@ -293,8 +222,21 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
 
-		/* Shut down the ACP interface is a step in power down however the AXXIA has not ACP so it is skipped*/
-		/* Signal that the ACP interface is idle */
+		/* Shut down the ACP interface is a step in power down however the AXXIA 5600 has not connected the ACP so it is skipped*/
+		if (IS_6700())
+		{
+			/* Shut down the associated xlf_ncap engine to eliminate requests to the ACP interface */
+			axxia_pwrc_ncap_set_bits_syscon_register(NCAP_CONFIG_INIT, NCAP_CONFIG_INIT_A53_ACP_PORT_MODE);
+			failure = axxia_pwrc_ncap_test_for_bit_with_timeout(NCAP_IDLE_STATUS, NCAP_IDLE_STATUS_ALL_MASK);
+			if (failure) {
+				rval = PSCI_E_INTERN_FAIL;
+				ERROR("CPU: Failed to power off the NCAP\n");
+				return rval;
+			}
+
+			/* Signal that the ACP interface is idle */
+			axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_AINACTS, cluster_mask);
+		}
 
 		/* Disable and invalidate the L1 data cache */
 		axxia_pwrc_disable_cache(TRUE);
@@ -325,11 +267,21 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
 
+		if (IS_6700())
+		{
+			/* Disable the CPU Reset Deassertion Timer Register before powering down the cpu */
+			axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+			axxia_pwrc_clear_bits_syscon_register(SYSCON_CPU_RESET_DEASSERTION_TIMER, (0xFFFF));
+			axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+		}
+
 		axxia_pwrc_disable_cache(FALSE);
 
 		rval = axxia_pwrc_cpu_physical_isolation_and_power_down(reqcpu);
 		if (rval == PSCI_E_SUCCESS)
+		{
 			axxia_pwrc_cpu_powered_down |= (1 << reqcpu);
+		}
 		else
 			ERROR("CPU %u failed to power down\n", reqcpu);
 	}
@@ -380,7 +332,7 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 	mmio_write_32(0x8031000000,
 			(0x14000000 |
 					(axxia_sec_entry_point - 0x8031000000) / 4));
-	isb();
+	dsb();
 
 	/*
 	 * Power up the CPU
@@ -558,6 +510,11 @@ static void axxia_pwrc_disable_cache(bool leadCore)
 	 * maintenance operations from other cores in the cluster being issued to s new CPU core.
 	 */
 	plat_flush_dcache_l1();
+	if (IS_6700())
+	{
+		plat_flush_dcache_l2();
+	}
+	dsb();
 
 	/*
 	 * Disable data coherency with other cores in the cluster by clearing the CPUECTLR.SMPEN bit. Clearing the
@@ -651,6 +608,19 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
+	if (IS_6700())
+	{
+		axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+		axxia_pwrc_or_bits_syscon_register(SYSCON_ALLOW_DBG, mask);
+		axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
+		failure = axxia_pwrc_test_for_bit_with_timeout(SYSCON_ALLOW_DBG, cluster);
+		if (failure) {
+			rval = PSCI_E_INTERN_FAIL;
+			ERROR("CPU: L2 Debug reset failed.\n");
+			goto power_up_l2_cleanup;
+		}
+	}
+
 	/* Keep the ADB interfaces logically powered off */
 	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_CSYSREQ_APB, mask);
 	failure = axxia_pwrc_wait_for_bit_clear_with_timeout(SYSCON_PWR_CSYSACK_APB, cluster);
@@ -724,13 +694,26 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	/* Power on the L2 power domain */
-	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2PLUS, mask);
-	udelay(12);
+	if (IS_6700())
+	{
+		/* Power on the L2 power domain */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_XLF_PWR_PWRUPTOP, mask);
+		udelay(12);
 
-	/* Activate L2 interfaces */
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEL2PLUS, mask);
-	udelay(12);
+		/* Activate L2 interfaces */
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_XLF_PWR_ISOLATETOP, mask);
+		udelay(12);
+	}
+	else
+	{
+		/* Power on the L2 power domain */
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2PLUS, mask);
+		udelay(12);
+
+		/* Activate L2 interfaces */
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEL2PLUS, mask);
+		udelay(12);
+	}
 
 	/* Release the cluster bridges from reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
@@ -850,9 +833,12 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	/* Reset the debug registers from the shutdown */
-	axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEPDBG, mask);
-	axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2DBG, mask);
+	if (IS_5600())
+	{
+		/* Reset the debug registers from the shutdown */
+		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_ISOLATEPDBG, mask);
+		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_PWRUPL2DBG, mask);
+	}
 
 	/* Release the L2 from reset */
 	axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);

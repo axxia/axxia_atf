@@ -171,9 +171,11 @@ endfunc platform_mem_init
  *-----------------------------------------------------
  */
 func plat_flush_dcache_l1
-	mov x0,	#1
-	mov	x1,	#0
-	b plat_flush_dcache
+	mov	x16, x30
+	mov	x0, #0
+	mov x1, #0
+	bl	plat_flush_dcache
+	mov	x30, x16
 	ret
 endfunc plat_flush_dcache_l1
 
@@ -188,23 +190,63 @@ endfunc plat_flush_dcache_l1
  *-----------------------------------------------------
  */
 func plat_flush_dcache_l2
-	mov x0,	#2
-	mov	x1,	#0
-	b plat_flush_dcache
+	mov	x16, x30
+	mov	x0, #1
+	mov x1, #0
+	bl	plat_flush_dcache
+	mov	x30, x16
 	ret
 endfunc plat_flush_dcache_l2
 
-/*-----------------------------------------------------
- * void plat_flush_dcache
+/*
+ * void plat_flush_dcache(int invalidate_only)
+ *
+ * x0: cache level
+ * x1: 0 flush & invalidate, 1 invalidate only
+ *
+ * clean and invalidate all data cache by SET/WAY.
+ */
+func plat_flush_dcache
+	dsb	sy
+	mrs	x10, clidr_el1		/* read clidr_el1 */
+	lsr	x11, x10, #24
+	and	x11, x11, #0x7		/* x11 <- loc */
+	cbz	x11, finished		/* if loc is 0, exit */
+	mov	x15, x30
+	/* x0  <- cache level */
+	/* x10 <- clidr_el1 */
+	/* x11 <- loc */
+	/* x15 <- return address */
+
+	lsl	x12, x0, #1
+	add	x12, x12, x0		/* x0 <- tripled cache level */
+	lsr	x12, x10, x12
+	and	x12, x12, #7		/* x12 <- cache type */
+	cmp	x12, #2
+	b.lt	cont			/* skip if no cache or icache */
+	bl	plat_flush_dcache_level	/* x1 = 0 flush, 1 invalidate */
+
+cont:
+	mov	x0, #0
+	msr	csselr_el1, x0		/* restore csselr_el1 */
+	dsb	sy
+	isb
+	mov	x30, x15
+
+finished:
+	ret
+endfunc plat_flush_dcache
+
+/*
+ * void plat_flush_dcache_level(level)
  *
  * clean and invalidate one level cache.
  *
  * x0: cache level
  * x1: 0 flush & invalidate, 1 invalidate only
  * x2~x9: clobbered
- *-----------------------------------------------------
  */
-func plat_flush_dcache
+func plat_flush_dcache_level
 	lsl	x12, x0, #1
 	msr	csselr_el1, x12		/* select cache level */
 	isb				/* sync change of cssidr_el1 */
@@ -239,7 +281,7 @@ loop_way:
 	b.ge	loop_set
 
 	ret
-endfunc plat_flush_dcache
+endfunc plat_flush_dcache_level
 
 	.data
 	.align 3
