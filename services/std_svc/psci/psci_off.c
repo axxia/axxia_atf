@@ -35,6 +35,7 @@
 #include <platform.h>
 #include <string.h>
 #include "psci_private.h"
+#include <delay_timer.h>
 
 /******************************************************************************
  * Construct the psci_power_state to request power OFF at all power levels.
@@ -64,6 +65,7 @@ int psci_do_cpu_off(unsigned int end_pwrlvl)
 {
 	int rc = PSCI_E_SUCCESS, idx = plat_my_core_pos();
 	psci_power_state_t state_info;
+
 
 	/*
 	 * This function must only be called on platforms where the
@@ -101,9 +103,21 @@ int psci_do_cpu_off(unsigned int end_pwrlvl)
 	psci_do_state_coordination(end_pwrlvl, &state_info);
 
 	/*
+	 * When a CPU is powered down on the 6700, the idle task sends the
+	 * CPU state as CPU_DEAD, the calling CPU waits for this condition to
+	 * be true in order to complete the shutdown of CPU. Without this
+	 * delay the cache was getting corrupted and the calling CPU was
+	 * getting varied results which caused intermittent failures on
+	 * powering down the CPU. It doesnt affect the other axxia
+	 * chips so it is left here for all cases.
+	 */
+	udelay(20);
+
+	/*
 	 * Arch. management. Perform the necessary steps to flush all
 	 * cpu caches.
 	 */
+
 	psci_do_pwrdown_cache_maintenance(psci_find_max_off_lvl(&state_info));
 
 	/*

@@ -510,10 +510,6 @@ static void axxia_pwrc_disable_cache(bool leadCore)
 	 * maintenance operations from other cores in the cluster being issued to s new CPU core.
 	 */
 	plat_flush_dcache_l1();
-	if (IS_6700())
-	{
-		plat_flush_dcache_l2();
-	}
 	dsb();
 
 	/*
