@@ -174,30 +174,6 @@ static unsigned int axxia_pwrc_wait_for_bit_clear_with_timeout(unsigned int reg,
 	return PSCI_E_SUCCESS;
 }
 
-static unsigned int axxia_pwrc_ncap_test_for_bit_with_timeout(unsigned int reg, unsigned int bit)
-{
-
-	unsigned int tmp = 0;
-	long long cnt = 0;
-
-	while (cnt < PM_WAIT_TIME) {
-		tmp = mmio_read_32(NCAP + reg);
-		if (CHECK_BIT(tmp, bit))
-			break;
-		cnt++;
-	}
-	if (cnt == PM_WAIT_TIME) {
-		ERROR("reg=0x%x tmp:=0x%x\n", reg, tmp);
-		return PSCI_E_INTERN_FAIL;
-	}
-	return PSCI_E_SUCCESS;
-}
-
-static void axxia_pwrc_ncap_set_bits_syscon_register(unsigned int reg, unsigned int data)
-{
-	mmio_write_32((NCAP + reg), data);
-}
-
 int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 {
 
@@ -205,7 +181,7 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 	unsigned int cluster_mask = (0x01 << cluster);
 	bool last_cpu;
 	int rval = PSCI_E_SUCCESS;
-	int failure = 0;
+	//int failure = 0;
 
 	/* Check to see if the cpu is powered up */
 	if (axxia_pwrc_cpu_powered_down & (1 << reqcpu)) {
@@ -222,17 +198,17 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
 
+
 		/* Shut down the ACP interface is a step in power down however the AXXIA 5600 has not connected the ACP so it is skipped*/
 		if (IS_6700())
 		{
-			/* Shut down the associated xlf_ncap engine to eliminate requests to the ACP interface */
-			axxia_pwrc_ncap_set_bits_syscon_register(NCAP_CONFIG_INIT, NCAP_CONFIG_INIT_A53_ACP_PORT_MODE);
-			failure = axxia_pwrc_ncap_test_for_bit_with_timeout(NCAP_IDLE_STATUS, NCAP_IDLE_STATUS_ALL_MASK);
-			if (failure) {
-				rval = PSCI_E_INTERN_FAIL;
-				ERROR("CPU: Failed to power off the NCAP\n");
-				return rval;
-			}
+			/* Disable the GIC */
+			axxia_pwrc_clear_bits_syscon_register(SYSCON_GIC_DISABLE, cluster_mask);
+
+			/* Disable the CPU Reset Deassertion Timer Register before powering down the cpu */
+			axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
+			axxia_pwrc_clear_bits_syscon_register(SYSCON_CPU_RESET_DEASSERTION_TIMER, (0xFFFF));
+			axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, 0x00);
 
 			/* Signal that the ACP interface is idle */
 			axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_AINACTS, cluster_mask);
@@ -240,6 +216,10 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 		/* Disable and invalidate the L1 data cache */
 		axxia_pwrc_disable_cache(TRUE);
+
+		/* Clear the L2 cache */
+		plat_flush_dcache_l2();
+		dsb();
 
 		/* Remove the cluster from the CCN-504 coherency domain to ensure there will be no snoop requests */
 		if (0 != set_cluster_coherency(cluster, 0))
@@ -256,9 +236,6 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 		/* Signal that the cluster's logic that no snoop request will be directed to the cluster */
 		axxia_pwrc_or_bits_syscon_register(SYSCON_PWR_SINACT, cluster_mask);
-
-		isb();
-		dsb();
 
 		INFO("CPU %u is powered down with cluster: %u\n", reqcpu, cluster);
 		axxia_pwrc_cpu_powered_down |= (1 << reqcpu);
@@ -326,6 +303,10 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 			INFO("CPU %u is powered up with cluster: %u\n", reqcpu, cluster);
 		}
 		udelay(64);
+
+		if (IS_6700())
+			axxia_pwrc_set_bits_syscon_register(SYSCON_GIC_DISABLE, (1 << cluster));
+
 	}
 
 	/* Set up reset vector for cpu */
