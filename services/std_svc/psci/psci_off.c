@@ -37,6 +37,8 @@
 #include "psci_private.h"
 #include <delay_timer.h>
 
+extern void plat_flush_dcache_l1(void);
+
 /******************************************************************************
  * Construct the psci_power_state to request power OFF at all power levels.
  ******************************************************************************/
@@ -105,13 +107,11 @@ int psci_do_cpu_off(unsigned int end_pwrlvl)
 	/*
 	 * When a CPU is powered down on the 6700, the idle task sends the
 	 * CPU state as CPU_DEAD, the calling CPU waits for this condition to
-	 * be true in order to complete the shutdown of CPU. Without this
-	 * delay the cache was getting corrupted and the calling CPU was
-	 * getting varied results which caused intermittent failures on
-	 * powering down the CPU. It doesnt affect the other axxia
-	 * chips so it is left here for all cases.
+	 * be true in order to complete the shutdown of CPU. This flush
+	 * was added to insure that the cache is valid to avoid the race
+	 * condition.
 	 */
-	udelay(20);
+	plat_flush_dcache_l1();
 
 	/*
 	 * Arch. management. Perform the necessary steps to flush all
