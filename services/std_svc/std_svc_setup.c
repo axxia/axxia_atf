@@ -30,6 +30,7 @@
 
 #include <debug.h>
 #include <psci.h>
+#include <ccn.h>
 #include <runtime_svc.h>
 #include <std_svc.h>
 #include <stdint.h>
@@ -43,6 +44,7 @@ DEFINE_SVC_UUID(arm_svc_uid,
 /* Setup Standard Services */
 static int32_t std_svc_setup(void)
 {
+	ccn504_setup();
 	/*
 	 * PSCI is the only specification implemented as a Standard Service.
 	 * Invoke PSCI setup from here
@@ -71,6 +73,12 @@ uint64_t std_svc_smc_handler(uint32_t smc_fid,
 		return psci_smc_handler(smc_fid, x1, x2, x3, x4, cookie,
 				handle, flags);
 	}
+
+	if (is_ccn_fid(smc_fid)) {
+		return ccn_smc_handler(	smc_fid, x1, x2, x3, x4, cookie,
+				handle, flags);
+	}
+
 
 	switch (smc_fid) {
 	case ARM_STD_SVC_CALL_COUNT:

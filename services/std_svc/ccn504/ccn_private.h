@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2015, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -28,30 +28,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __STD_SVC_H__
-#define __STD_SVC_H__
+#ifndef __CCN_PRIVATE_H__
+#define __CCN_PRIVATE_H__
 
-/* SMC function IDs for Standard Service queries */
+#include <ccn.h>
 
-#define ARM_STD_SVC_CALL_COUNT		0x8400ff00
-#define ARM_STD_SVC_UID			0x8400ff01
-/*					0x8400ff02 is reserved */
-#define ARM_STD_SVC_VERSION		0x8400ff03
-
-/* ARM Standard Service Calls version numbers */
-#define STD_SVC_VERSION_MAJOR		0x0
-#define STD_SVC_VERSION_MINOR		0x1
-
-/* The macros below are used to identify PSCI calls from the SMC function ID */
-#define PSCI_FID_MASK			0xffe0u
-#define PSCI_FID_VALUE			0u
-#define is_psci_fid(_fid) \
-	(((_fid) & PSCI_FID_MASK) == PSCI_FID_VALUE)
-
-/* The macros below are used to identify CCN calls from the SMC function ID */
-#define CCN_FID_MASK			0xffd0u
-#define CCN_FID_VALUE			0u
-#define is_ccn_fid(_fid) \
-	(((_fid) & CCN_FID_MASK) == CCN_FID_VALUE)
-
-#endif /* __STD_SVC_H__ */
+#endif /* __CCN_PRIVATE_H__ */

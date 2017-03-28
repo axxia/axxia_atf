@@ -51,7 +51,10 @@ BL31_SOURCES		+=	bl31/bl31_main.c				\
 				services/std_svc/psci/psci_helpers.S		\
 				services/std_svc/psci/psci_main.c		\
 				services/std_svc/psci/psci_setup.c		\
+				services/std_svc/ccn504/ccn_main.c		\
+				services/std_svc/ccn504/ccn_setup.c		\
 				services/std_svc/psci/psci_system_off.c
+
 
 ifeq (${USE_COHERENT_MEM}, 1)
 BL31_SOURCES		+=	lib/locks/bakery/bakery_lock_coherent.c
