@@ -109,6 +109,29 @@ func el1_sysregs_context_save
 	mrs	x9, vbar_el1
 	stp	x17, x9, [x0, #CTX_CONTEXTIDR_EL1]
 
+#if WORKAROUND_CVE_2017_15031
+	mrs	x10, pmcr_el0
+	str	x10, [x0, #CTX_PMCR_EL0]
+
+	/* Save AArch32 system registers if the build has instructed so */
+#if CTX_INCLUDE_AARCH32_REGS
+	mrs	x11, spsr_abt
+	mrs	x12, spsr_und
+	stp	x11, x12, [x0, #CTX_SPSR_ABT]
+
+	mrs	x13, spsr_irq
+	mrs	x14, spsr_fiq
+	stp	x13, x14, [x0, #CTX_SPSR_IRQ]
+
+	mrs	x15, dacr32_el2
+	mrs	x16, ifsr32_el2
+	stp	x15, x16, [x0, #CTX_DACR32_EL2]
+
+	mrs	x17, fpexc32_el2
+	str	x17, [x0, #CTX_FP_FPEXC32_EL2]
+#endif
+#endif /*for WORKAROUND_CVE_2017_15031*/
+
 	/* Save NS timer registers if the build has instructed so */
 #if NS_TIMER_SWITCH
 	mrs	x10, cntp_ctl_el0
@@ -194,6 +217,29 @@ func el1_sysregs_context_restore
 	ldp	x17, x9, [x0, #CTX_CONTEXTIDR_EL1]
 	msr	contextidr_el1, x17
 	msr	vbar_el1, x9
+
+#if WORKAROUND_CVE_2017_15031
+	ldr	x10, [x0, #CTX_PMCR_EL0]
+	msr	pmcr_el0, x10
+
+	/* Restore AArch32 system registers if the build has instructed so */
+#if CTX_INCLUDE_AARCH32_REGS
+	ldp	x11, x12, [x0, #CTX_SPSR_ABT]
+	msr	spsr_abt, x11
+	msr	spsr_und, x12
+
+	ldp	x13, x14, [x0, #CTX_SPSR_IRQ]
+	msr	spsr_irq, x13
+	msr	spsr_fiq, x14
+
+	ldp	x15, x16, [x0, #CTX_DACR32_EL2]
+	msr	dacr32_el2, x15
+	msr	ifsr32_el2, x16
+
+	ldr	x17, [x0, #CTX_FP_FPEXC32_EL2]
+	msr	fpexc32_el2, x17
+#endif
+#endif /*for WORKAROUND_CVE_2017_15031*/
 
 	/* Restore NS timer registers if the build has instructed so */
 #if NS_TIMER_SWITCH

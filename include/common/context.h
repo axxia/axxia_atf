@@ -117,11 +117,24 @@
 #define CTX_AFSR1_EL1		0xc8
 #define CTX_CONTEXTIDR_EL1	0xd0
 #define CTX_VBAR_EL1		0xd8
+
+#if WORKAROUND_CVE_2017_15031
+#define CTX_PMCR_EL0		0xe0
+#endif
 /*
  * If the timer registers aren't saved and restored, we don't have to reserve
  * space for them in the context
  */
 #if NS_TIMER_SWITCH
+# if WORKAROUND_CVE_2017_15031
+#define CTX_CNTP_CTL_EL0	0xe8
+#define CTX_CNTP_CVAL_EL0	0xf0
+#define CTX_CNTV_CTL_EL0	0xf8
+#define CTX_CNTV_CVAL_EL0	0x100
+#define CTX_CNTKCTL_EL1		0x108
+#define CTX_FP_FPEXC32_EL2	0x110
+#define CTX_SYSREGS_END		0x118
+# else
 #define CTX_CNTP_CTL_EL0	0xe0
 #define CTX_CNTP_CVAL_EL0	0xe8
 #define CTX_CNTV_CTL_EL0	0xf0
@@ -129,9 +142,15 @@
 #define CTX_CNTKCTL_EL1		0x100
 #define CTX_FP_FPEXC32_EL2	0x108
 #define CTX_SYSREGS_END		0x110
+# endif
 #else
+# if WORKAROUND_CVE_2017_15031
+#define CTX_FP_FPEXC32_EL2	0xe8
+#define CTX_SYSREGS_END		0xf8
+# else
 #define CTX_FP_FPEXC32_EL2	0xe0
 #define CTX_SYSREGS_END		0xf0
+# endif
 #endif
 
 /*******************************************************************************

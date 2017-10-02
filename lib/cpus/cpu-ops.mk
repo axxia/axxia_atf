@@ -92,3 +92,14 @@ $(eval $(call add_define,WORKAROUND_CVE_2017_7564))
 WORKAROUND_CVE_2017_7563   ?=0
 $(eval $(call assert_boolean,WORKAROUND_CVE_2017_7563))
 $(eval $(call add_define,WORKAROUND_CVE_2017_7563))
+
+# Process WORKAROUND_CVE_2017_15031 flag
+WORKAROUND_CVE_2017_15031  ?=0
+$(eval $(call assert_boolean,WORKAROUND_CVE_2017_15031))
+$(eval $(call add_define,WORKAROUND_CVE_2017_15031))
+
+# Build flag to include AArch32 registers in cpu context save and restore
+# during world switch. This flag must be set to 0 for AArch64-only platforms.
+CTX_INCLUDE_AARCH32_REGS    ?=0
+$(eval $(call assert_boolean,CTX_INCLUDE_AARCH32_REGS))
+$(eval $(call add_define,CTX_INCLUDE_AARCH32_REGS))

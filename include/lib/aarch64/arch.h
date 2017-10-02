@@ -380,6 +380,16 @@
 #define BLOCK_DESC		0x1UL
 #define TABLE_DESC		0x3UL
 
+/* PMCR_EL0 definitions */
+#define PMCR_EL0_RESET_VAL	0x0UL
+#define PMCR_EL0_N_SHIFT	11
+#define PMCR_EL0_N_MASK		0x1fUL
+#define PMCR_EL0_N_BITS		(PMCR_EL0_N_MASK << PMCR_EL0_N_SHIFT)
+#define PMCR_EL0_LC_BIT		(1ull << 6)
+#define PMCR_EL0_DP_BIT		(1ull << 5)
+#define PMCR_EL0_X_BIT		(1ull << 4)
+#define PMCR_EL0_D_BIT		(1ull << 3)
+
 #define FIRST_LEVEL_DESC_N	ONE_GB_SHIFT
 #define SECOND_LEVEL_DESC_N	TWO_MB_SHIFT
 #define THIRD_LEVEL_DESC_N	FOUR_KB_SHIFT
