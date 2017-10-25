@@ -10,18 +10,20 @@
 
 #include "ccn_private.h"
 
+extern unsigned long dickens_base;
+
 #ifdef CCN_DEBUG
 int ccn_make_unsecure(uint64_t x1)
 {
 	uint64_t ret=1;
-	mmio_write_64(0x8000000000, 0x1);
+	mmio_write_64(dickens_base, 0x1);
 	return  ret;
 }
 
 int ccn_make_secure(uint64_t x1)
 {
 	uint64_t ret=1;
-	mmio_write_64(0x8000000000, 0x0);
+	mmio_write_64(dickens_base, 0x0);
 	return  ret;
 }
 #endif
@@ -36,7 +38,7 @@ uint64_t write_ccn_nm_errint_status(uint64_t x1)
 	case CCN_MN_ERRINT_STATUS__CORRECTED_ERRORS_DISABLE:
 	case CCN_MN_ERRINT_STATUS__PMU_EVENTS__ENABLE:
 	case CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLE:
-		mmio_write_64(0x8000000008, x1);
+		mmio_write_64(dickens_base + 8, x1);
 		return 1;
 	default:
 
@@ -47,7 +49,7 @@ uint64_t write_ccn_nm_errint_status(uint64_t x1)
 
 uint64_t read_ccn_nm_errint_status(void)
 {
-	return mmio_read_64(0x8000000008);
+	return mmio_read_64(dickens_base + 8);
 }
 
 uint64_t ccn_smc_handler(uint32_t smc_fid,
@@ -86,7 +88,7 @@ uint64_t ccn_smc_handler(uint32_t smc_fid,
 			SMC_RET1(handle, ccn_make_unsecure(x1));
 #endif
 		case CCN_MN_READ_ERRINT_AARCH64:
-			SMC_RET1(handle, mmio_read_64(0x8000000008));
+			SMC_RET1(handle, mmio_read_64(dickens_base + 8));
 
 		case CCN_MN_WRITE_ERRINT_AARCH64:
 			SMC_RET1(handle, write_ccn_nm_errint_status(x1));
