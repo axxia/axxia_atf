@@ -164,7 +164,7 @@
 		 *  common mask for A53, A57        ->0x410FD030
 		 *  exclusive between for A53, A57  ->0x00000040
 		 *
-		 * Currently, there is no other option then A53 and A57
+		 * Currently, there is no other option than A53 and A57
 		 */
 		mrs	x0, midr_el1
 		movz 	x1, #0x410f, LSL #16
@@ -177,19 +177,14 @@
 		b.ne	a57_ecc	
 	a53_ecc:
 		/*
-		 * Uncomment A53 relative code if required and verify.
 		 * It enables ecc protection for CPU and SCU-L2 cache.
 		 * Bits [21] [22].
 		 */
-
-		/*
-		 * movz	x1, #60, LSL #16
-		 * mrs	x0, S3_1_C11_C0_2 
-		 * orr	x0, x0, x1
-		 * msr	S3_1_C11_C0_2, x0
-	 	 * isb
-		 */
-		
+		movz	x1, #60, LSL #16
+		mrs	x0, S3_1_C11_C0_2 
+		orr	x0, x0, x1
+		msr	S3_1_C11_C0_2, x0
+	 	isb
 		b	skip_ecc
 	a57_ecc:
 		/*
