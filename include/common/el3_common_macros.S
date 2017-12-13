@@ -156,48 +156,6 @@
 		isb
 	.endif /* _set_endian */
 
-		/* Set up l1/l2 cache ecc here, distinguish between A53
-		 * and A57 in runtime:
-		 *  A57 - bits [15:4] 0xD07         ->0x411FD073
-		 *  A53 - bits [15:4] 0xD03         ->0x410FD034
-		 *
-		 *  common mask for A53, A57        ->0x410FD030
-		 *  exclusive between for A53, A57  ->0x00000040
-		 *
-		 * Currently, there is no other option than A53 and A57
-		 */
-		mrs	x0, midr_el1
-		movz 	x1, #0x410f, LSL #16
-		movk 	x1, #0xd030, LSL #0
-		and	x2, x0, x1
-		cmp	x2, x1
-		b.ne	skip_ecc
-		mov	x1, #0x0040
-		tst	x0, x1
-		b.ne	a57_ecc	
-	a53_ecc:
-		/*
-		 * It enables ecc protection for CPU and SCU-L2 cache.
-		 * Bits [21] [22].
-		 */
-		movz	x1, #60, LSL #16
-		mrs	x0, S3_1_C11_C0_2 
-		orr	x0, x0, x1
-		msr	S3_1_C11_C0_2, x0
-	 	isb
-		b	skip_ecc
-	a57_ecc:
-		/*
-		 * This enables both L1 and L2 cache protection for A57.
-		 * Bit [21].
-		 */
-		movz	x1, #0x20, LSL #16
-		mrs	x0, S3_1_C11_C0_2 
-		orr	x0, x0, x1
-		msr	S3_1_C11_C0_2, x0
-		isb
-	skip_ecc:
-	
 	.if \_warm_boot_mailbox
 		/* -------------------------------------------------------------
 		 * This code will be executed for both warm and cold resets.

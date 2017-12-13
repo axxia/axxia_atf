@@ -211,4 +211,13 @@
 		.endif
 	.endm
 
+	/*
+	 * Branch if current processor is a Cortex-A57 core.
+	 */
+	.macro  branch_if_a57_core, xreg, a57_label
+		mrs \xreg, midr_el1
+		ubfx \xreg, \xreg, #4, #12
+		cmp \xreg, #0xD07       /* Cortex-A57 MPCore processor. */
+		b.eq    \a57_label
+	.endm
 #endif /* __ASM_MACROS_S__ */
