@@ -555,6 +555,32 @@ flush_l3(void)
 
 /*
   ==============================================================================
+  is_xlf_a0
+
+  Detect A0 parts, which need to be configured slightly differently.
+  Display a warning if the part is unfused, and assume !A0 in that
+  case.
+*/
+
+int
+is_xlf_a0(void)
+{
+	unsigned int pfuse;
+
+	pfuse = mmio_read_32(SYSCON_BASE + 0x34);
+
+	if (0 == pfuse)		/* Unfused */
+		return 0;
+	else if (0x18 != (pfuse & 0x1f)) /* Unknown Chip Type! */
+		return 0;
+	else if (0 != ((pfuse & 0x300) >> 8)) /* Not A0 */
+		return 0;
+
+	return 1;
+}
+
+/*
+  ==============================================================================
   Clusters and Coherency
 */
 
@@ -598,18 +624,33 @@ initialize_cluster_info(void)
 		number_of_clusters = 12;
 
 		if (IS_SIM() || IS_HW()) {
-			bit_by_cluster[0]  = 11;
-			bit_by_cluster[1]  = 12;
-			bit_by_cluster[2]  = 17;
-			bit_by_cluster[3]  = 18;
-			bit_by_cluster[4]  = 29;
-			bit_by_cluster[5]  = 30;
-			bit_by_cluster[6]  = 35;
-			bit_by_cluster[7]  =  0;
-			bit_by_cluster[8]  = 14;
-			bit_by_cluster[9]  = 15;
-			bit_by_cluster[10] = 32;
-			bit_by_cluster[11] = 33;
+			if (is_xlf_a0()) {
+				bit_by_cluster[0]  = 11;
+				bit_by_cluster[1]  = 12;
+				bit_by_cluster[2]  = 17;
+				bit_by_cluster[3]  = 18;
+				bit_by_cluster[4]  = 29;
+				bit_by_cluster[5]  = 30;
+				bit_by_cluster[6]  = 35;
+				bit_by_cluster[7]  =  0;
+				bit_by_cluster[8]  = 14;
+				bit_by_cluster[9]  = 15;
+				bit_by_cluster[10] = 32;
+				bit_by_cluster[11] = 33;
+			} else {
+				bit_by_cluster[0]  = 32;
+				bit_by_cluster[1]  = 29;
+				bit_by_cluster[2]  = 18;
+				bit_by_cluster[3]  = 14;
+				bit_by_cluster[4]  = 12;
+				bit_by_cluster[5]  = 11;
+				bit_by_cluster[6]  =  0;
+				bit_by_cluster[7]  = 35;
+				bit_by_cluster[8]  = 33;
+				bit_by_cluster[9]  = 30;
+				bit_by_cluster[10] = 17;
+				bit_by_cluster[11] = 15;
+			}
 		} else {
 			bit_by_cluster[0]  = 17;
 			bit_by_cluster[1]  = -1;
