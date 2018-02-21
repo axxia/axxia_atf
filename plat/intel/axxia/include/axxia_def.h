@@ -35,7 +35,8 @@
 
 typedef enum {
 	AXXIA_5600 = 0,
-	AXXIA_6700 = 1
+	AXXIA_6700 = 1,
+	AXXIA_6700_B0 = 2
 } axxia_target_t;
 
 typedef enum {
@@ -67,6 +68,8 @@ extern axxia_configuration_t axxia_configuration;
 
 #define IS_5600() (AXXIA_5600 == axxia_configuration.target)
 #define IS_6700() (AXXIA_6700 == axxia_configuration.target)
+#define IS_6700_B0() (AXXIA_6700_B0 == axxia_configuration.target)
+#define IS_ANY_6700() (IS_6700() || IS_6700_B0())
 #define IS_SIM()  (AXXIA_SIM == axxia_configuration.platform)
 #define IS_EMU()  (AXXIA_EMU == axxia_configuration.platform)
 #define IS_HW()   (AXXIA_HW == axxia_configuration.platform)

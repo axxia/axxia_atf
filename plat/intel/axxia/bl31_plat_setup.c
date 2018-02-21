@@ -205,7 +205,7 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 			       void *plat_params_from_bl2)
 {
 #if LOG_LEVEL >= LOG_LEVEL_INFO
-	static char *target[] = { "5600", "6700" };
+	static char *target[] = { "5600", "6700", "6700_B0" };
 	static char *platform[] = { "simulation", "emulation", "hardware" };
 	static char *syscache_only_mode_option[] = { "none", "run in cache" };
 	static char *cache_protection_option[] = {
@@ -217,8 +217,8 @@ void bl31_early_platform_setup(bl31_params_t *from_bl2,
 
 	/* Initialize the console to provide early debug support */
 	console_init(PL011_UART0_BASE,
-		     axxia_configuration.per_clock_hz,
-		     axxia_configuration.baud_rate);
+                     axxia_configuration.per_clock_hz,
+                     axxia_configuration.baud_rate);
 
 	INFO("Options: %s, %s, %s, %u MHz, %u\n",
 	     target[axxia_configuration.target],
@@ -491,7 +491,7 @@ set_l3_state(unsigned int state)
 	 * Skip for XLF simulation -- currently not suppported.
 	 */
 
-	if (IS_6700() && IS_SIM()) {
+	if (IS_ANY_6700() && IS_SIM()) {
 		WARN("L3 State Not Available in XLF Simulation\n");
 
 		return 0;
@@ -555,32 +555,6 @@ flush_l3(void)
 
 /*
   ==============================================================================
-  is_xlf_a0
-
-  Detect A0 parts, which need to be configured slightly differently.
-  Display a warning if the part is unfused, and assume !A0 in that
-  case.
-*/
-
-int
-is_xlf_a0(void)
-{
-	unsigned int pfuse;
-
-	pfuse = mmio_read_32(SYSCON_BASE + 0x34);
-
-	if (0 == pfuse)		/* Unfused */
-		return 0;
-	else if (0x18 != (pfuse & 0x1f)) /* Unknown Chip Type! */
-		return 0;
-	else if (0 != ((pfuse & 0x300) >> 8)) /* Not A0 */
-		return 0;
-
-	return 1;
-}
-
-/*
-  ==============================================================================
   Clusters and Coherency
 */
 
@@ -624,7 +598,7 @@ initialize_cluster_info(void)
 		number_of_clusters = 12;
 
 		if (IS_SIM() || IS_HW()) {
-			if (is_xlf_a0()) {
+			if (IS_6700()) {
 				bit_by_cluster[0]  = 11;
 				bit_by_cluster[1]  = 12;
 				bit_by_cluster[2]  = 17;
@@ -699,7 +673,7 @@ set_cluster_coherency(unsigned cluster, unsigned state)
 	 * Skip for XLF simulation -- currently not suppported.
 	 */
 
-	if (IS_6700() && IS_SIM()) {
+	if (IS_ANY_6700() && IS_SIM()) {
 		WARN("Coherency Not Settable in XLF Simulation\n");
 
 		return 0;
@@ -771,7 +745,7 @@ bl31_plat_runtime_setup(void)
 		ERROR("Adding cluster 0 to the coherency domain failed!\n");
 
 	/* Start with all DSP clusters off. */
-	if (IS_6700())
+	if (IS_ANY_6700())
 		set_dsp_state(0);
 
 	if (IS_SYSCACHE_ONLY())

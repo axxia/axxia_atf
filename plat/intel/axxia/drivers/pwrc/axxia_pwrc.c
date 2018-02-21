@@ -200,7 +200,7 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 
 		/* Shut down the ACP interface is a step in power down however the AXXIA 5600 has not connected the ACP so it is skipped*/
-		if (IS_6700())
+		if (IS_ANY_6700())
 		{
 			/* Disable the GIC */
 			axxia_pwrc_clear_bits_syscon_register(SYSCON_GIC_DISABLE, cluster_mask);
@@ -244,7 +244,7 @@ int axxia_pwrc_cpu_shutdown(unsigned int reqcpu)
 
 		axxia_pwrc_clear_bits_syscon_register(SYSCON_PWR_GIC_CPU_ACTIVE, (1 << reqcpu));
 
-		if (IS_6700())
+		if (IS_ANY_6700())
 		{
 			/* Disable the CPU Reset Deassertion Timer Register before powering down the cpu */
 			axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
@@ -304,7 +304,7 @@ int axxia_pwrc_cpu_powerup(unsigned int reqcpu)
 		}
 		udelay(64);
 
-		if (IS_6700())
+		if (IS_ANY_6700())
 			axxia_pwrc_set_bits_syscon_register(SYSCON_GIC_DISABLE, (1 << cluster));
 
 	}
@@ -585,7 +585,7 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	if (IS_6700())
+	if (IS_ANY_6700())
 	{
 		axxia_pwrc_set_bits_syscon_register(SYSCON_KEY, VALID_KEY_VALUE);
 		axxia_pwrc_or_bits_syscon_register(SYSCON_ALLOW_DBG, mask);
@@ -671,7 +671,7 @@ static int axxia_pwrc_L2_physical_connection_and_power_up(unsigned int cluster)
 		goto power_up_l2_cleanup;
 	}
 
-	if (IS_6700())
+	if (IS_ANY_6700())
 	{
 		/* Power on the L2 power domain */
 		axxia_pwrc_or_bits_syscon_register(SYSCON_XLF_PWR_PWRUPTOP, mask);
