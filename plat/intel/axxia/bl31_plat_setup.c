@@ -250,6 +250,15 @@ const unsigned int axxia_sec_irq[] = {
  ******************************************************************************/
 void bl31_platform_setup(void)
 {
+	/* Allow EL0 to access the PMU registers. */
+	{
+		unsigned int value;
+
+		__asm__ __volatile__ ("mrs %0, pmuserenr_el0" : "=r" (value));
+		value |= 0x7;
+		__asm__ __volatile__ ("msr pmuserenr_el0, %0" : : "r" (value));
+	}
+
 	/* Initialize the gic cpu and distributor interfaces */
 	axxia_gic_setup();
 

@@ -309,6 +309,15 @@ axxia_pwr_domain_on_finish(const psci_power_state_t *target_state)
 		__asm__ __volatile__ ("msr OSLAR_EL1, %0" : : "r" (oslar_el1));
 	}
 
+	/* Allow EL0 to access the PMU registers. */
+	{
+		unsigned int value;
+
+		__asm__ __volatile__ ("mrs %0, pmuserenr_el0" : "=r" (value));
+		value |= 0x7;
+		__asm__ __volatile__ ("msr pmuserenr_el0, %0" : : "r" (value));
+	}
+
 	return;
 }
 
