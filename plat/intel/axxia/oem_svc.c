@@ -30,11 +30,14 @@
 #include <arch.h>
 #include <arch_helpers.h>
 #include <assert.h>
+#include <mmio.h>
 #include <debug.h>
 #include <platform.h>
 #include <runtime_svc.h>
 #include <stdint.h>
 #include <uuid.h>
+
+#include <axxia_def.h>
 #include <axxia_private.h>
 
 #include "oem_svc.h"
@@ -96,6 +99,22 @@ uint64_t oem_svc_smc_handler(uint32_t smc_fid,
 		__asm__ __volatile__ ("msr actlr_el2, %0" : : "r" (x1));
 		isb();
 		SMC_RET1(handle, 0);
+		break;
+	case 0xc3000006:
+		/* Get CCN */
+		if (IS_5600())
+			value = mmio_read_64(DICKENS_BASE_X9 + x1);
+		else
+			value = mmio_read_64(DICKENS_BASE_XLF + x1);
+		SMC_RET2(handle, 0, value);
+		break;
+	case 0xc3000007:
+		/* Set CCN */
+		if (IS_5600())
+			mmio_write_64(DICKENS_BASE_X9 + x1, x2);
+		else
+			mmio_write_64(DICKENS_BASE_XLF + x1, x2);
+		SMC_RET1(handle, 0)
 		break;
 	default:
 		break;
