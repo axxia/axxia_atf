@@ -181,6 +181,12 @@ func cortex_a57_reset_func
 	bl	errata_a57_813420_wa
 #endif
 
+#if WORKAROUND_CVE_2018_3639
+	mrs	x0, CPUACTLR_EL1
+	orr	x0, x0, #CPUACTLR_DISABLE_LPS
+	msr	CPUACTLR_EL1, x0
+#endif
+
 	/* ---------------------------------------------
 	 * As a bare minimum enable the SMP bit if it is
 	 * not already set.

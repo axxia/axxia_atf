@@ -61,6 +61,7 @@
  ******************************************************************************/
 #define CPUACTLR_EL1			S3_1_C15_C2_0	/* Instruction def. */
 
+#define CPUACTLR_DISABLE_LPS           (1 << 55)
 #define CPUACTLR_NO_ALLOC_WBWA         (1 << 49)
 #define CPUACTLR_DCC_AS_DCCI           (1 << 44)
 
