@@ -367,9 +367,9 @@
 #define TWO_MB_INDEX(x)		((x) >> TWO_MB_SHIFT)
 #define FOUR_KB_INDEX(x)	((x) >> FOUR_KB_SHIFT)
 
-#define INVALID_DESC		0x0
-#define BLOCK_DESC		0x1
-#define TABLE_DESC		0x3
+#define INVALID_DESC		0x0UL
+#define BLOCK_DESC		0x1UL
+#define TABLE_DESC		0x3UL
 
 #define FIRST_LEVEL_DESC_N	ONE_GB_SHIFT
 #define SECOND_LEVEL_DESC_N	TWO_MB_SHIFT
@@ -424,12 +424,12 @@
 #define ATTR_SO_INDEX			0x2
 #define ATTR_DEVICE_INDEX		0x1
 #define ATTR_IWBWA_OWBWA_NTR_INDEX	0x0
-#define LOWER_ATTRS(x)			(((x) & 0xfff) << 2)
+#define LOWER_ATTRS(x)			((unsigned long)(((x) & 0xfff) << 2))
 #define ATTR_ZZZ                        (0xff)
 #define ATTR_SO				(0x0)
 #define ATTR_DEVICE			(0x0)
 #define ATTR_IWBWA_OWBWA_NTR		(0x44)
-#define MAIR_ATTR_SET(attr, index)	(attr << (index << 3))
+#define MAIR_ATTR_SET(attr, index)	((unsigned long)(attr << (index << 3)))
 
 /* Exception Syndrome register bits and bobs */
 #define ESR_EC_SHIFT			26
