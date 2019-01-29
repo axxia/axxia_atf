@@ -301,6 +301,14 @@ void init_xlat_tables(void)
  *   _tlbi_fct:		Function to invalidate the TLBs at the current
  *			exception level
  ******************************************************************************/
+
+#ifdef WORKAROUND_CVE_2017_7563
+#define INIT_SCTLR_WXN() sctlr |= SCTLR_WXN_BIT
+#else
+#define INIT_SCTLR_WXN() sctlr &= ~SCTLR_WXN_BIT
+#endif
+
+
 #define DEFINE_ENABLE_MMU_EL(_el, _tcr_extra, _tlbi_fct)		\
 	void enable_mmu_el##_el(uint32_t flags)				\
 	{								\
@@ -342,8 +350,8 @@ void init_xlat_tables(void)
 									\
 		sctlr = read_sctlr_el##_el();				\
 		sctlr |= SCTLR_M_BIT;					\
-		sctlr &= ~SCTLR_WXN_BIT;				\
-									\
+		INIT_SCTLR_WXN();		\
+								\
 		if (flags & DISABLE_DCACHE)				\
 			sctlr &= ~SCTLR_C_BIT;				\
 		else							\

@@ -48,7 +48,11 @@ void bl31_arch_setup(void)
 	  Set the RES1 bits in the SCR_EL3. Also set SCR_FIQ_BIT to
 	  route FIQs to EL3.
 	*/
+#if WORKAROUND_CVE_2017_7563
+	write_scr_el3(read_scr_el3() | SCR_RES1_BITS | SCR_FIQ_BIT);
+#else
 	write_scr_el3(SCR_RES1_BITS | SCR_FIQ_BIT);
+#endif
 
 	/* Program the counter frequency */
 	write_cntfrq_el0(plat_get_syscnt_freq());
