@@ -74,7 +74,7 @@ $(eval $(call assert_boolean,ERRATA_A57_813420))
 $(eval $(call add_define,ERRATA_A57_813420))
 
 # Process WORKAROUND_CVE_2017_5715 flag
-WORKAROUND_CVE_2017_5715	?=1
+WORKAROUND_CVE_2017_5715	?=0
 $(eval $(call assert_boolean,WORKAROUND_CVE_2017_5715))
 $(eval $(call add_define,WORKAROUND_CVE_2017_5715))
 
