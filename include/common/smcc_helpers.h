@@ -56,6 +56,7 @@
 
 #define SMC_64				1
 #define SMC_32				0
+#define SMC_OK              0
 #define SMC_UNK				0xffffffff
 #define SMC_TYPE_FAST			1
 #define SMC_TYPE_STD			0
@@ -65,6 +66,7 @@
  * calling convention
  ******************************************************************************/
 #define OEN_ARM_START			0
+
 #define OEN_ARM_END			0
 #define OEN_CPU_START			1
 #define OEN_CPU_END			1
@@ -85,6 +87,11 @@
 #include <cassert.h>
 #include <context.h>
 #include <stdint.h>
+
+#define SMCCC_MAJOR_VERSION 1
+#define SMCCC_MINOR_VERSION 1
+
+#define MAKE_SMCCC_VERSION(_major, _minor) (((_major) << 16) | (_minor))
 
 /* Various flags passed to SMC handlers */
 #define SMC_FROM_SECURE		(0 << 0)
@@ -135,6 +142,10 @@
 /* The macro below is used to identify a Standard Service SMC call */
 #define is_std_svc_call(_fid)		((((_fid) >> FUNCID_OEN_SHIFT) & \
 					   FUNCID_OEN_MASK) == OEN_STD_START)
+
+/* The macro below is used to identify a Arm Architectural Service SMC call */
+#define is_arm_arch_svc_call(_fid)     ((((_fid) >> FUNCID_OEN_SHIFT) & \
+                                          FUNCID_OEN_MASK) == OEN_ARM_START)
 
 /* The macro below is used to identify a valid Fast SMC call */
 #define is_valid_fast_smc(_fid)		((!(((_fid) >> 16) & 0xff)) && \

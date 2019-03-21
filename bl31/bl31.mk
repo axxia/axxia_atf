@@ -31,6 +31,7 @@
 BL31_SOURCES		+=	bl31/bl31_main.c				\
 				bl31/cpu_data_array.c				\
 				bl31/runtime_svc.c				\
+				services/arm_arch_svc/arm_arch_svc_setup.c		\
 				bl31/interrupt_mgmt.c				\
 				bl31/aarch64/bl31_arch_setup.c			\
 				bl31/aarch64/bl31_entrypoint.S			\
