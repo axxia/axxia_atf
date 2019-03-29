@@ -34,6 +34,11 @@
 #include <interrupt_mgmt.h>
 #include <platform_def.h>
 #include <runtime_svc.h>
+#include <services/arm_arch_svc.h>
+
+#define ESR_EL3_A64_SMC0	0x5e000000
+#define ESR_EL3_A32_SMC0	0x4e000000
+
 
 	.globl	runtime_exceptions
 
@@ -161,15 +166,46 @@ interrupt_exit_\label:
 	str	x18, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_SP_EL0]
 	.endm
 
-	.macro	apply_workaround
+	.macro	apply_cve_2017_5715_wa _is_sync_exception _esr_el3_val
 	stp	x0, x1, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_X0]
-	mrs	x0, sctlr_el3
+	mrs	x1, sctlr_el3
 	/* Disable MMU */
-	bic	x1, x0, #SCTLR_M_BIT
+	bic	x1, x1, #SCTLR_M_BIT
 	msr	sctlr_el3, x1
 	isb
-	/* Restore MMU config */
-	msr	sctlr_el3, x0
+	/* Enable MMU */
+	orr	x1, x1, #SCTLR_M_BIT
+	msr	sctlr_el3, x1
+	/*
+	 * Defer ISB to avoid synchronizing twice in case we hit
+	 * the workaround SMC call which will implicitly synchronize
+	 * because of the ERET instruction.
+	 */
+
+	/*
+	 * Ensure SMC is coming from A64/A32 state on #0
+	 * with W0 = SMCCC_ARCH_WORKAROUND_1
+	 *
+	 * This sequence evaluates as:
+	 *    (W0==SMCCC_ARCH_WORKAROUND_1) ? (ESR_EL3==SMC#0) : (NE)
+	 * allowing use of a single branch operation
+	 */
+	.if \_is_sync_exception
+		orr	w1, wzr, #SMCCC_ARCH_WORKAROUND_1
+		cmp	w0, w1
+		mrs	x0, esr_el3
+		mov_imm	w1, \_esr_el3_val
+		ccmp	w0, w1, #0, eq
+		/* Static predictor will predict a fall through */
+		bne	1f
+		eret
+1:
+	.endif
+
+	/*
+	 * Synchronize now to enable the MMU.  This is required
+	 * to ensure the load pair below reads the data stored earlier.
+	 */
 	isb
 	ldp	x0, x1, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_X0]
 	.endm
@@ -300,7 +336,7 @@ sync_exception_aarch64:
 	 * -----------------------------------------------------
 	 */
 #if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
-	apply_workaround
+	apply_cve_2017_5715_wa _is_sync_exception=1  _esr_el3_val=ESR_EL3_A64_SMC0
 #endif
 	handle_sync_exception
 	check_vector_size sync_exception_aarch64
@@ -313,7 +349,7 @@ sync_exception_aarch64:
 	 */
 irq_aarch64:
 #if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
-	apply_workaround
+	apply_cve_2017_5715_wa _is_sync_exception=0 _esr_el3_val=ESR_EL3_A64_SMC0
 #endif
 	handle_interrupt_exception irq_aarch64
 	check_vector_size irq_aarch64
@@ -321,13 +357,16 @@ irq_aarch64:
 	.align	7
 fiq_aarch64:
 #if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
-	apply_workaround
+	apply_cve_2017_5715_wa _is_sync_exception=0 _esr_el3_val=ESR_EL3_A64_SMC0
 #endif
 	handle_interrupt_exception fiq_aarch64
 	check_vector_size fiq_aarch64
 
 	.align	7
 serror_aarch64:
+#if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
+	apply_cve_2017_5715_wa _is_sync_exception=0 _esr_el3_val=ESR_EL3_A64_SMC0
+#endif
 	bl	report_unhandled_exception
 	check_vector_size serror_aarch64
 
@@ -346,7 +385,7 @@ sync_exception_aarch32:
 	 * -----------------------------------------------------
 	 */
 #if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
-	apply_workaround
+	apply_cve_2017_5715_wa _is_sync_exception=1 _esr_el3_val=ESR_EL3_A32_SMC0
 #endif
 	handle_sync_exception
 	check_vector_size sync_exception_aarch32
@@ -359,7 +398,7 @@ sync_exception_aarch32:
 	 */
 irq_aarch32:
 #if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
-	apply_workaround
+	apply_cve_2017_5715_wa _is_sync_exception=0 _esr_el3_val=ESR_EL3_A32_SMC0
 #endif
 	handle_interrupt_exception irq_aarch32
 	check_vector_size irq_aarch32
@@ -367,13 +406,16 @@ irq_aarch32:
 	.align	7
 fiq_aarch32:
 #if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
-	apply_workaround
+	apply_cve_2017_5715_wa _is_sync_exception=0 _esr_el3_val=ESR_EL3_A32_SMC0
 #endif
 	handle_interrupt_exception fiq_aarch32
 	check_vector_size fiq_aarch32
 
 	.align	7
 serror_aarch32:
+#if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
+	apply_cve_2017_5715_wa _is_sync_exception=0 _esr_el3_val=ESR_EL3_A32_SMC0
+#endif
 	bl	report_unhandled_exception
 	check_vector_size serror_aarch32
 
