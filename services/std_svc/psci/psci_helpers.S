@@ -111,7 +111,7 @@ endfunc psci_do_pwrdown_cache_maintenance
 
 
 /* -----------------------------------------------------------------------
- * void psci_do_pwrup_cache_maintenance(void);
+ * void psci_do_pwrup_cache_maintenance(uint32_t flags);
  *
  * This function performs cache maintenance after this cpu is powered up.
  * Currently, this involves managing the used stack memory before turning
@@ -119,7 +119,10 @@ endfunc psci_do_pwrdown_cache_maintenance
  * -----------------------------------------------------------------------
  */
 func psci_do_pwrup_cache_maintenance
-	stp	x29, x30, [sp,#-16]!
+	stp	x29, x30, [sp, #-32]! /*str FP and LR to sp-=32*/
+	mov x29, sp		/*sp to FP*/
+	str x0, [sp, #16]	/*str x0 to sp+16*/
+	mov x9, x0
 
 	/* ---------------------------------------------
 	 * Ensure any inflight stack writes have made it
@@ -130,7 +133,7 @@ func psci_do_pwrup_cache_maintenance
 
 	/* ---------------------------------------------
 	 * Calculate and store the size of the used
-	 * stack memory in x1. Calculate and store the
+	 * stack memory in x2. Calculate and store the
 	 * stack base address in x0.
 	 * ---------------------------------------------
 	 */
@@ -140,15 +143,18 @@ func psci_do_pwrup_cache_maintenance
 	mov	x0, sp
 	bl	inv_dcache_range
 
+	mov x0, x9
+	tbnz x0, 0, 1f
 	/* ---------------------------------------------
 	 * Enable the data cache.
 	 * ---------------------------------------------
 	 */
 	mrs	x0, sctlr_el3
-	orr	x0, x0, #SCTLR_C_BIT
+	orr	x0, x1, #SCTLR_C_BIT
 	msr	sctlr_el3, x0
 	isb
 
-	ldp	x29, x30, [sp], #16
+1: 	/*ldp x0, x1, [sp, #16]*/ /*ldr x0,x1 with sp+16 - no needed as returns null*/
+	ldp	x29, x30, [sp], #32   /*ldr FP, LR with sp, then sp+=32*/
 	ret
 endfunc psci_do_pwrup_cache_maintenance

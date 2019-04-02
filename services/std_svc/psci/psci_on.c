@@ -38,6 +38,7 @@
 #include <platform.h>
 #include <runtime_svc.h>
 #include <stddef.h>
+#include <xlat_tables.h> /*for DISABLE_DCACHE*/
 #include "psci_private.h"
 
 /*******************************************************************************
@@ -164,7 +165,7 @@ void psci_cpu_on_finish(unsigned int cpu_idx,
 	/*
 	 * Arch. management: Enable data cache and manage stack memory
 	 */
-	psci_do_pwrup_cache_maintenance();
+	psci_do_pwrup_cache_maintenance(DISABLE_DCACHE);
 
 	/*
 	 * All the platform specific actions for turning this cpu

@@ -39,6 +39,7 @@
 #include <platform.h>
 #include <runtime_svc.h>
 #include <stddef.h>
+#include <xlat_tables.h> /*for DISABLE_DCACHE*/
 #include "psci_private.h"
 
 /*******************************************************************************
@@ -235,7 +236,7 @@ void psci_cpu_suspend_finish(unsigned int cpu_idx,
 	 * restore the stashed EL3 architectural context from the 'cpu_context'
 	 * structure for this cpu.
 	 */
-	psci_do_pwrup_cache_maintenance();
+	psci_do_pwrup_cache_maintenance(DISABLE_DCACHE);
 
 	/* Re-init the cntfrq_el0 register */
 	counter_freq = plat_get_syscnt_freq();

@@ -335,12 +335,6 @@ void bl31_plat_arch_setup()
 			  BL31_RO_BASE, BL31_RO_LIMIT);
 }
 
-void
-bl31_plat_enable_mmu(uint32_t flags)
-{
-	return;
-}
-
 #include <gic_v2.h>
 
 void

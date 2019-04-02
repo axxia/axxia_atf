@@ -220,7 +220,7 @@ void psci_cpu_suspend_finish(unsigned int cpu_idx,
 
 /* Private exported functions from psci_helpers.S */
 void psci_do_pwrdown_cache_maintenance(unsigned int pwr_level);
-void psci_do_pwrup_cache_maintenance(void);
+void psci_do_pwrup_cache_maintenance(uint32_t flags);
 
 /* Private exported functions from psci_system_off.c */
 void __dead2 psci_system_off(void);
