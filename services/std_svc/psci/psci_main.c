@@ -373,6 +373,16 @@ uint64_t psci_smc_handler(uint32_t smc_fid,
 		case PSCI_FEATURES:
 			SMC_RET1(handle, psci_features(x1));
 
+		case PSCI_MEM_PROTECT:
+			SMC_RET1(handle, psci_mem_protect(x1));
+
+		case PSCI_MEM_CHK_RANGE_AARCH32:
+			SMC_RET1(handle, psci_mem_chk_range(x1, x2));
+
+		case PSCI_SYSTEM_RESET2_AARCH32:
+			/* We should never return from psci_system_reset2() */
+			SMC_RET1(handle, psci_system_reset2(x1, x2));
+
 		default:
 			break;
 		}
@@ -397,6 +407,13 @@ uint64_t psci_smc_handler(uint32_t smc_fid,
 
 		case PSCI_SYSTEM_SUSPEND_AARCH64:
 			SMC_RET1(handle, psci_system_suspend(x1, x2));
+
+		case PSCI_MEM_CHK_RANGE_AARCH64:
+			SMC_RET1(handle, psci_mem_chk_range(x1, x2));
+
+		case PSCI_SYSTEM_RESET2_AARCH64:
+			/* We should never return from psci_system_reset2() */
+			SMC_RET1(handle, psci_system_reset2(x1, x2));
 
 		default:
 			break;

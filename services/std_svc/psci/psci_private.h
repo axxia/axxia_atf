@@ -67,7 +67,9 @@
 			define_psci_cap(PSCI_AFFINITY_INFO_AARCH64) |	\
 			define_psci_cap(PSCI_MIG_AARCH64) |		\
 			define_psci_cap(PSCI_MIG_INFO_UP_CPU_AARCH64) |	\
-			define_psci_cap(PSCI_SYSTEM_SUSPEND_AARCH64))
+			define_psci_cap(PSCI_SYSTEM_SUSPEND_AARCH64) |	\
+			define_psci_cap(PSCI_MEM_CHK_RANGE_AARCH64) |	\
+			define_psci_cap(PSCI_SYSTEM_RESET2_AARCH64))
 
 /*
  * Helper macros to get/set the fields of PSCI per-cpu data.
@@ -225,5 +227,10 @@ void psci_do_pwrup_cache_maintenance(uint32_t flags);
 /* Private exported functions from psci_system_off.c */
 void __dead2 psci_system_off(void);
 void __dead2 psci_system_reset(void);
+int psci_system_reset2(uint32_t reset_type, u_register_t cookie);
+
+/* Private exported functions from psci_mem_protect.c */
+int psci_mem_protect(unsigned int enable);
+int psci_mem_chk_range(uintptr_t base, u_register_t length);
 
 #endif /* __PSCI_PRIVATE_H__ */

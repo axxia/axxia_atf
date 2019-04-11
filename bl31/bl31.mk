@@ -52,6 +52,7 @@ BL31_SOURCES		+=	bl31/bl31_main.c				\
 				services/std_svc/psci/psci_helpers.S		\
 				services/std_svc/psci/psci_main.c		\
 				services/std_svc/psci/psci_setup.c		\
+				services/std_svc/psci/psci_mem_protect.c	\
 				services/std_svc/ccn504/ccn_main.c		\
 				services/std_svc/ccn504/ccn_setup.c		\
 				services/std_svc/psci/psci_system_off.c

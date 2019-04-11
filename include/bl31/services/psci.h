@@ -80,6 +80,11 @@
 #define PSCI_FEATURES			0x8400000A
 #define PSCI_SYSTEM_SUSPEND_AARCH32	0x8400000E
 #define PSCI_SYSTEM_SUSPEND_AARCH64	0xc400000E
+#define PSCI_SYSTEM_RESET2_AARCH32	0x84000012
+#define PSCI_SYSTEM_RESET2_AARCH64	0xc4000012
+#define PSCI_MEM_PROTECT		0x84000013
+#define PSCI_MEM_CHK_RANGE_AARCH32	0x84000014
+#define PSCI_MEM_CHK_RANGE_AARCH64	0xc4000014
 
 /* Macro to help build the psci capabilities bitfield */
 #define define_psci_cap(x)		(1 << (x & 0x1f))
@@ -168,6 +173,14 @@
 #define PSCI_E_INVALID_ADDRESS	-9
 
 #define PSCI_INVALID_MPIDR	~((u_register_t)0)
+
+/*
+ * SYSTEM_RESET2 macros
+ */
+#define PSCI_RESET2_TYPE_VENDOR_SHIFT   31
+#define PSCI_RESET2_TYPE_VENDOR     (1U << PSCI_RESET2_TYPE_VENDOR_SHIFT)
+#define PSCI_RESET2_TYPE_ARCH       (0U << PSCI_RESET2_TYPE_VENDOR_SHIFT)
+#define PSCI_RESET2_SYSTEM_WARM_RESET   (PSCI_RESET2_TYPE_ARCH | 0)
 
 #ifndef __ASSEMBLY__
 
@@ -272,6 +285,11 @@ typedef struct plat_psci_ops {
 	int (*validate_ns_entrypoint)(uintptr_t ns_entrypoint);
 	void (*get_sys_suspend_power_state)(
 				    psci_power_state_t *req_state);
+	int (*mem_protect_chk)(uintptr_t base, u_register_t length);
+	int (*read_mem_protect)(int *val);
+	int (*write_mem_protect)(int val);
+	int (*system_reset2)(int is_vendor,
+				int reset_type, u_register_t cookie);
 } plat_psci_ops_t;
 
 /*******************************************************************************
