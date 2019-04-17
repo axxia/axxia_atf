@@ -371,6 +371,21 @@ int axxia_validate_ns_entrypoint(uintptr_t entrypoint)
 	return PSCI_E_INVALID_ADDRESS;
 }
 
+int axxia_read_mem_protect(int *val)
+{
+	return PSCI_E_NOT_SUPPORTED;
+}
+
+int axxia_write_mem_protect(int val)
+{
+	return PSCI_E_NOT_SUPPORTED;
+}
+
+int axxia_system_reset2(int is_vendor, int reset_type, u_register_t cookie)
+{
+	return PSCI_E_NOT_SUPPORTED;
+}
+
 /*******************************************************************************
  * Export the platform handlers via plat_arm_psci_pm_ops. The ARM Standard
  * platform layer will take care of registering the handlers with PSCI.
@@ -385,7 +400,10 @@ const plat_psci_ops_t axxia_psci_pm_ops = {
 	.system_off = axxia_system_off,
 	.system_reset = axxia_system_reset,
 	.validate_power_state = axxia_validate_power_state,
-	.validate_ns_entrypoint = axxia_validate_ns_entrypoint
+	.validate_ns_entrypoint = axxia_validate_ns_entrypoint,
+	.read_mem_protect = axxia_read_mem_protect,
+	.write_mem_protect = axxia_write_mem_protect,
+	.system_reset2 = axxia_system_reset2
 };
 
 /*******************************************************************************

@@ -73,7 +73,8 @@ int psci_system_reset2(uint32_t reset_type, u_register_t cookie)
 {
 	int is_vendor;
 
-	psci_print_power_domain_map();
+	/* mainline lets it print. Don't know what for so commenting out*/
+	/*psci_print_power_domain_map();*/
 
 	assert(psci_plat_pm_ops->system_reset2);
 
