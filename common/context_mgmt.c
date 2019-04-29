@@ -278,7 +278,10 @@ void cm_prepare_el3_exit(uint32_t security_state)
 
 	el1_sysregs_context_restore(get_sysregs_ctx(ctx));
 
-	cm_set_next_context(ctx);
+	__asm__ volatile("msr	spsel, #1\n"
+			 "mov	sp, %0\n"
+			 "msr	spsel, #0\n"
+			 : : "r" (ctx));
 }
 
 /*******************************************************************************
@@ -404,5 +407,8 @@ void cm_set_next_eret_context(uint32_t security_state)
 	ctx = cm_get_context(security_state);
 	assert(ctx);
 
-	cm_set_next_context(ctx);
+	__asm__ volatile("msr	spsel, #1\n"
+			 "mov	sp, %0\n"
+			 "msr	spsel, #0\n"
+			 : : "r" (ctx));
 }
