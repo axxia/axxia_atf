@@ -49,7 +49,8 @@ void bl31_arch_setup(void)
 	  route FIQs to EL3.
 	*/
 #if WORKAROUND_CVE_2017_7563
-	write_scr_el3(read_scr_el3() | SCR_RES1_BITS | SCR_FIQ_BIT);
+	/* in Work Around CVE_2017_7563 set additionally SIF */
+	write_scr_el3(SCR_SIF_BIT | SCR_RES1_BITS | SCR_FIQ_BIT);
 #else
 	write_scr_el3(SCR_RES1_BITS | SCR_FIQ_BIT);
 #endif
