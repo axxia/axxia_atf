@@ -110,3 +110,8 @@ $(eval $(call add_define,WORKAROUND_CVE_2017_15031))
 CTX_INCLUDE_AARCH32_REGS    ?=0
 $(eval $(call assert_boolean,CTX_INCLUDE_AARCH32_REGS))
 $(eval $(call add_define,CTX_INCLUDE_AARCH32_REGS))
+
+# Disable Secure Cycle Counter. For description see the commit message.
+WORKAROUND_DISABLE_SECURE_COUNTER ?=0
+$(eval $(call assert_boolean,WORKAROUND_DISABLE_SECURE_COUNTER))
+$(eval $(call add_define,WORKAROUND_DISABLE_SECURE_COUNTER))

@@ -41,7 +41,42 @@
 	.global	save_gp_registers
 	.global	restore_gp_registers_eret
 	.global	restore_gp_registers_callee_eret
+#if WORKAROUND_DISABLE_SECURE_COUNTER
+	.global	save_pmcr_disable_pmu
+#endif
 	.global	el3_exit
+
+#if WORKAROUND_DISABLE_SECURE_COUNTER
+func save_pmcr_disable_pmu
+	/* -----------------------------------------------------
+	 * Check if earlier initialization MDCR_EL3.SCCD to 1
+	 * failed, meaning that ARMv8-PMU is not implemented and
+	 * PMCR_EL0 should be saved in non-secure context.
+	 * -----------------------------------------------------
+	 */
+	mrs	x9, mdcr_el3
+	tst	x9, #MDCR_SCCD_BIT
+	bne	1f
+
+	/* Secure Cycle Counter is not disabled */
+	mrs	x9, pmcr_el0
+
+	/* Check caller's security state */
+	mrs	x10, scr_el3
+	tst	x10, #SCR_NS_BIT
+	beq	2f
+
+	/* Save PMCR_EL0 if called from Non-secure state */
+	str	x9, [sp, #CTX_EL3STATE_OFFSET + CTX_PMCR_EL0]
+
+	/* Disable cycle counter when event counting is prohibited */
+2:	orr	x9, x9, #PMCR_EL0_DP_BIT
+	msr	pmcr_el0, x9
+
+	isb
+1:	ret
+endfunc save_pmcr_disable_pmu
+#endif
 
 /* -----------------------------------------------------
  * The following function strictly follows the AArch64
@@ -441,6 +476,31 @@ func el3_exit
 	msr	scr_el3, x18
 	msr	spsr_el3, x16
 	msr	elr_el3, x17
+
+#if WORKAROUND_DISABLE_SECURE_COUNTER
+	/* -----------------------------------------------------
+	 * Restore PMCR_EL0 when returning to Non-secure state
+	 * if Secure Cycle Counter is not disabled in MDCR_EL3
+	 * when ARMv8.5-PMU is implemented
+	 * -----------------------------------------------------
+	 */
+	tst	x18, #SCR_NS_BIT
+	beq	2f
+
+	/* -----------------------------------------------------
+	 * Back to Non-secure state.
+	 * Check if earlier initialization MDCR_EL3.SCCD to 1
+	 * failed, meaning that ARMv8-PMU is not implemented and
+	 * PMCR_EL0 should be restored from non-secure context.
+	 * -----------------------------------------------------
+	 */
+	mrs	x17, mdcr_el3
+	tst	x17, #MDCR_SCCD_BIT
+	bne	2f
+	ldr	x17, [sp, #CTX_EL3STATE_OFFSET + CTX_PMCR_EL0]
+	msr	pmcr_el0, x17
+2:
+#endif
 
 	/* Restore saved general purpose registers and return */
 	b	restore_gp_registers_eret

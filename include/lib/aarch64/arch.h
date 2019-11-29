@@ -31,6 +31,19 @@
 #ifndef __ARCH_H__
 #define __ARCH_H__
 
+#if defined(__ASSEMBLER__)
+# define   U(_x)       (_x)
+# define  UL(_x)       (_x)
+# define ULL(_x)       (_x)
+# define   L(_x)       (_x)
+# define  LL(_x)       (_x)
+#else
+# define   U(_x)       (_x##U)
+# define  UL(_x)       (_x##UL)
+# define ULL(_x)       (_x##ULL)
+# define   L(_x)       (_x##L)
+# define  LL(_x)       (_x##LL)
+#endif
 
 /*******************************************************************************
  * MIDR bit definitions
@@ -180,12 +193,20 @@
 #define SCR_NS_BIT		(1 << 0)
 #define SCR_VALID_BIT_MASK	0x2f8f
 
-/* MDCR definitions */
+/* MDCR_EL3 definitions */
+#define MDCR_SCCD_BIT		(ULL(1) << 23)
+#define MDCR_SPME_BIT		(ULL(1) << 17)
+#define MDCR_SDD_BIT		(ULL(1) << 16)
 #define MDCR_SPD32(x)		((x) << 14)
-#define MDCR_SPD32_LEGACY	0x0
-#define MDCR_SPD32_DISABLE	0x2
-#define MDCR_SPD32_ENABLE	0x3
-#define MDCR_SDD_BIT		(1 << 16)
+#define MDCR_SPD32_LEGACY	ULL(0x0)
+#define MDCR_SPD32_DISABLE	ULL(0x2)
+#define MDCR_SPD32_ENABLE	ULL(0x3)
+#define MDCR_NSPB(x)		((x) << 12)
+#define MDCR_NSPB_EL1		ULL(0x3)
+#define MDCR_TDOSA_BIT		(ULL(1) << 10)
+#define MDCR_TDA_BIT		(ULL(1) << 9)
+#define MDCR_TPM_BIT		(ULL(1) << 6)
+#define MDCR_EL3_RESET_VAL	ULL(0x0)
 
 #define MDCR_DEF_VAL		(MDCR_SDD_BIT | MDCR_SPD32(MDCR_SPD32_DISABLE))
 
@@ -381,14 +402,18 @@
 #define TABLE_DESC		0x3UL
 
 /* PMCR_EL0 definitions */
-#define PMCR_EL0_RESET_VAL	0x0UL
-#define PMCR_EL0_N_SHIFT	11
-#define PMCR_EL0_N_MASK		0x1fUL
+#define PMCR_EL0_RESET_VAL	U(0x0)
+#define PMCR_EL0_N_SHIFT	U(11)
+#define PMCR_EL0_N_MASK		U(0x1f)
 #define PMCR_EL0_N_BITS		(PMCR_EL0_N_MASK << PMCR_EL0_N_SHIFT)
-#define PMCR_EL0_LC_BIT		(1ull << 6)
-#define PMCR_EL0_DP_BIT		(1ull << 5)
-#define PMCR_EL0_X_BIT		(1ull << 4)
-#define PMCR_EL0_D_BIT		(1ull << 3)
+#define PMCR_EL0_LP_BIT		(U(1) << 7)
+#define PMCR_EL0_LC_BIT		(U(1) << 6)
+#define PMCR_EL0_DP_BIT		(U(1) << 5)
+#define PMCR_EL0_X_BIT		(U(1) << 4)
+#define PMCR_EL0_D_BIT		(U(1) << 3)
+#define PMCR_EL0_C_BIT		(U(1) << 2)
+#define PMCR_EL0_P_BIT		(U(1) << 1)
+#define PMCR_EL0_E_BIT		(U(1) << 0)
 
 #define FIRST_LEVEL_DESC_N	ONE_GB_SHIFT
 #define SECOND_LEVEL_DESC_N	TWO_MB_SHIFT

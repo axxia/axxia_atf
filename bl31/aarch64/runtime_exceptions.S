@@ -83,6 +83,15 @@
 	str	x30, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_LR]
 	bl	save_gp_registers
 
+#if WORKAROUND_DISABLE_SECURE_COUNTER
+	/*
+	 * Save PMCR_EL0 and disable all event counters and cycle
+	 * counter when event counting is prohibited when coming
+	 * either from secure or non-secure state.
+	 */
+	bl	save_pmcr_disable_pmu
+#endif
+
 	/*
 	 * Save the EL3 system registers needed to return from
 	 * this exception.
@@ -448,6 +457,15 @@ smc_handler64:
 	 * to pass to the handler.
 	 */
 	bl	save_gp_registers
+
+#if WORKAROUND_DISABLE_SECURE_COUNTER
+	/*
+	 * Save PMCR_EL0 and disable all event counters and cycle
+	 * counter when event counting is prohibited when coming
+	 * either from secure or non-secure state.
+	 */
+	bl	save_pmcr_disable_pmu
+#endif
 
 	mov	x5, xzr
 	mov	x6, sp

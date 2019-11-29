@@ -78,6 +78,76 @@
 	msr	mdcr_el3, x0
 #endif
 
+#if WORKAROUND_DISABLE_SECURE_COUNTER
+	/* ---------------------------------------------------------------------
+	 * Initialise MDCR_EL3, setting all fields rather than relying on hw.
+	 * Some fields are architecturally UNKNOWN on reset.
+	 *
+	 * Note: This doesn't confict with WORKAROUND_CVE_2017_7564.
+	 *  WORKAROUND_CVE_2017_7564 set same values to the fields it set.
+	 *  I know it calls for refactoring but the code baselines across
+	 *  upstream and this are so much different, so have to fill in where
+	 *  needed.
+	 *
+	 * MDCR_EL3.SDD: Set to one to disable AArch64 Secure self-hosted debug.
+	 *  Debug exceptions, other than Breakpoint Instruction exceptions, are
+	 *  disabled from all ELs in Secure state.
+	 *
+	 * MDCR_EL3.SPD32: Set to 0b10 to disable AArch32 Secure self-hosted
+	 *  privileged debug from S-EL1.
+	 *
+	 * MDCR_EL3.TDOSA: Set to zero so that EL2 and EL2 System register
+	 *  access to the powerdown debug registers do not trap to EL3.
+	 *
+	 * MDCR_EL3.TDA: Set to zero to allow EL0, EL1 and EL2 access to the
+	 *  debug registers, other than those registers that are controlled by
+	 *  MDCR_EL3.TDOSA.
+	 *
+	 * MDCR_EL3.TPM: Set to zero so that EL0, EL1, and EL2 System register
+	 *  accesses to all Performance Monitors registers do not trap to EL3.
+	 *
+	 * MDCR_EL3.SCCD: Set to one so that cycle counting by PMCCNTR_EL0 is
+	 *  prohibited in Secure state. This bit is RES0 in versions of the
+	 *  architecture earlier than ARMv8.5, setting it to 1 doesn't have any
+	 *  effect on them.
+	 * ---------------------------------------------------------------------
+	 */
+	mov_imm	x0, ((MDCR_EL3_RESET_VAL | MDCR_SDD_BIT | \
+		      MDCR_SPD32(MDCR_SPD32_DISABLE) | MDCR_SCCD_BIT) & \
+		    ~(MDCR_TDOSA_BIT | MDCR_TDA_BIT | MDCR_TPM_BIT))
+	msr	mdcr_el3, x0
+
+	/* ---------------------------------------------------------------------
+	 * Initialise PMCR_EL0 setting all fields rather than relying
+	 * on hw. Some fields are architecturally UNKNOWN on reset.
+	 *
+	 * PMCR_EL0.LP: Set to one so that event counter overflow, that
+	 *  is recorded in PMOVSCLR_EL0[0-30], occurs on the increment
+	 *  that changes PMEVCNTR<n>_EL0[63] from 1 to 0, when ARMv8.5-PMU
+	 *  is implemented. This bit is RES0 in versions of the architecture
+	 *  earlier than ARMv8.5, setting it to 1 doesn't have any effect
+	 *  on them.
+	 *
+	 * PMCR_EL0.LC: Set to one so that cycle counter overflow, that
+	 *  is recorded in PMOVSCLR_EL0[31], occurs on the increment
+	 *  that changes PMCCNTR_EL0[63] from 1 to 0.
+	 *
+	 * PMCR_EL0.DP: Set to one so that the cycle counter,
+	 *  PMCCNTR_EL0 does not count when event counting is prohibited.
+	 *
+	 * PMCR_EL0.X: Set to zero to disable export of events.
+	 *
+	 * PMCR_EL0.D: Set to zero so that, when enabled, PMCCNTR_EL0
+	 *  counts on every clock cycle.
+	 * ---------------------------------------------------------------------
+	 */
+	mov_imm	x0, ((PMCR_EL0_RESET_VAL | PMCR_EL0_LP_BIT | \
+		      PMCR_EL0_LC_BIT | PMCR_EL0_DP_BIT) & \
+		    ~(PMCR_EL0_X_BIT | PMCR_EL0_D_BIT))
+
+	msr	pmcr_el0, x0
+#endif
+
 	/* ---------------------------------------------------------------------
 	 * Enable External Aborts and SError Interrupts now that the exception
 	 * vectors have been setup.
