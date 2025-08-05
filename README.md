@@ -4,6 +4,8 @@
 
 This repository contains the port of ARM Trusted Firmware for Axxia.
 
+Updated or touched 05Aug2025 to comply with the activity requirement.
+
 ### Branches
 
 The 'main' branch contains two files, this README and COPYING.
